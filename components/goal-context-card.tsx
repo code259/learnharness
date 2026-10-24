@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, MapIcon } from "lucide-react";
-import type { BookContextDetails, GoalContextDetails } from "@/src/core";
+import { BookOpenIcon, CompassIcon, MapIcon } from "lucide-react";
+import type { AgendaContextDetails, BookContextDetails, GoalContextDetails } from "@/src/core";
 
 /**
  * The goal-context card (goals, fork #4): message[0] of a session started
@@ -41,6 +41,25 @@ export function BookContextCard({ data }: { data: BookContextDetails }) {
 				<span className="font-medium">Book section</span>
 				<span className="min-w-0 flex-1 truncate">
 					{data.sectionTitle} · {data.bookTitle} (pp. {data.startPage}–{data.endPage})
+				</span>
+			</Link>
+		</div>
+	);
+}
+
+/** The agenda-context card (field map, fork #10): message[0] of a "Learn
+ *  this agenda" session — links back to the field map. */
+export function AgendaContextCard({ data }: { data: AgendaContextDetails }) {
+	return (
+		<div data-testid="agenda-context-card" className="my-1">
+			<Link
+				href={`/field-map?agenda=${encodeURIComponent(data.agendaId)}`}
+				className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border/70 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+			>
+				<CompassIcon aria-hidden="true" className="size-3.5 shrink-0" />
+				<span className="font-medium">Research agenda</span>
+				<span className="min-w-0 flex-1 truncate">
+					{data.agendaTitle} · {data.areaTitle}
 				</span>
 			</Link>
 		</div>

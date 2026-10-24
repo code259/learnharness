@@ -228,6 +228,7 @@ export const ROLE_SLOT: Readonly<Record<ModelRole, ModelSlotName>> = {
 	pdfReader: "vision",
 	roadmapper: "strong",
 	librarian: "cheap",
+	cartographer: "strong",
 };
 
 /** General settings — app-level behavior. Version DISPLAY and plans login

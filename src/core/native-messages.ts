@@ -69,6 +69,7 @@ export interface LhMarkerMessage {
 		| "graph-context"
 		| "goal-context"
 		| "book-context"
+		| "agenda-context"
 		| "probe-handoff"
 		| "subagent-steer"
 		| "subagent-abort"
@@ -331,6 +332,47 @@ export function newBookContextMessage(input: {
 			startPage: input.startPage,
 			endPage: input.endPage,
 		} satisfies BookContextDetails,
+		timestamp: Date.now(),
+	};
+}
+
+/** The agenda-context marker's UI payload (field map, fork #10). */
+export interface AgendaContextDetails {
+	agendaId: string;
+	agendaTitle: string;
+	areaTitle: string;
+}
+
+/** "Learn this agenda" (field map, fork #10): message[0] of a session the
+ *  learner started from an AI safety research agenda. The agenda fixes the
+ *  session's goal; the prober still measures and the plan is tailored. */
+export function newAgendaContextMessage(input: {
+	agendaId: string;
+	agendaTitle: string;
+	areaTitle: string;
+	summary: string;
+	theoryOfChange: string;
+	concepts: readonly string[];
+}): LhMarkerMessage {
+	const lines = [
+		"[Session context] — the learner chose to learn this research agenda from their AI safety field map:",
+		"",
+		`Agenda: ${input.agendaTitle} (area: ${input.areaTitle})`,
+		`What it is: ${input.summary}`,
+		`Why it matters: ${input.theoryOfChange}`,
+		"",
+		"Key concepts it takes:",
+		...input.concepts.map((c) => `- ${c}`),
+		"",
+		"Understanding this agenda is the session's goal. Teach it tailored to what the learner already holds — the concept list is orientation, not a syllabus.",
+	];
+	return {
+		id: newMessageId(),
+		role: "custom",
+		customType: "agenda-context",
+		content: lines.join("\n"),
+		display: true,
+		details: { agendaId: input.agendaId, agendaTitle: input.agendaTitle, areaTitle: input.areaTitle } satisfies AgendaContextDetails,
 		timestamp: Date.now(),
 	};
 }
@@ -782,7 +824,7 @@ export function nativeInputCause(message: AgentMessage, history: readonly AgentM
 	if (message.role === "custom") {
 		if (["probe-handoff", "subagent-steer", "subagent-abort"].includes(message.customType)) return "automatic";
 		if (["practice-thinking", "practice-next"].includes(message.customType)) return "learner";
-		return ["graph-context", "goal-context", "book-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
+		return ["graph-context", "goal-context", "book-context", "agenda-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
 	}
 	if (message.role === "toolResult") {
 		if (!(QUESTION_TOOLS as readonly string[]).includes(message.toolName) || message.isError || message.details == null || (message.details as { dismissed?: boolean }).dismissed) return "neutral";

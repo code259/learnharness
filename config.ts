@@ -32,6 +32,8 @@ export const PATHS = {
 	inbox: path.join(DATA_ROOT, "inbox.json"),
 	/** The library (fork #15): data/library/<bookId>/{book.pdf, book.json}. */
 	library: path.join(DATA_ROOT, "library"),
+	/** The AI safety field map (fork #10): one JSON record. */
+	fieldmap: path.join(DATA_ROOT, "fieldmap", "map.json"),
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),
@@ -64,7 +66,10 @@ export type ModelRole =
 	| "roadmapper"
 	/** The library's background reader (fork #15): book maps (outline
 	 *  fallback + key ideas) and coverage judging — bulk work, CHEAP slot. */
-	| "librarian";
+	| "librarian"
+	/** The field map's cartographer (fork #10): refines and updates the AI
+	 *  safety map against current sources — judgment work, STRONG slot. */
+	| "cartographer";
 
 /**
  * The LIVE graph store (src/store/graph.ts) — owned by the app's extraction

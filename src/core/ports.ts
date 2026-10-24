@@ -34,6 +34,7 @@ import type {
 	InboxItem,
 	InboxStatus,
 	BookRecord,
+	FieldMapRecord,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -281,4 +282,14 @@ export interface LibraryStore {
 	/** The book's PDF copy (may not exist yet for a book mid-creation). */
 	pdfPath(id: string): string;
 	deleteBook(id: string): boolean;
+}
+
+// ─── FieldMapStore — the AI safety field map (data/fieldmap, fork #10) ───────
+// One JSON record; the field-map service is the sole writer; every write
+// announces fieldmap-changed.
+
+export interface FieldMapStore {
+	/** The record, or null before the first build (or newer-schema refusal). */
+	read(): FieldMapRecord | null;
+	write(record: FieldMapRecord): void;
 }

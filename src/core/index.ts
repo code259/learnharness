@@ -39,6 +39,8 @@ export * from "./goals.ts";
 export * from "./today.ts";
 // library.ts (fork #15): book outline/coverage folds — browser-safe.
 export * from "./library.ts";
+// fieldmap.ts (fork #10): field-map folds + "Where you stand" — browser-safe.
+export * from "./fieldmap.ts";
 export * from "./phases.ts";
 export * from "./pending.ts";
 export * from "./prompt-segments.ts";
@@ -55,6 +57,7 @@ export * from "./input-events.ts";
 export * from "./view.ts";
 export * from "./tool-parts.ts";
 export * from "./prices.ts";
+export * from "./context-usage.ts";
 export type { ChatGPTStatus, ChatGPTControlBridge } from "./contracts/chatgpt.ts";
 export * from "./cost-summary.ts";
 export * from "./fuzzy.ts";
