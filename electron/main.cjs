@@ -24,7 +24,7 @@
  *     would shadow every settings-page key change until restart.
  */
 
-const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog, safeStorage } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog, safeStorage, globalShortcut, screen } = require("electron");
 const { createChatGPT, encryptedStore } = require("./chatgpt.cjs");
 const { attachChatGPTChild, trustedSender, chatGPTControl } = require("./chatgpt-ipc.cjs");
 const { desktopAPIHeaders } = require("./desktop-api.cjs");
@@ -380,6 +380,79 @@ function createWindow(url) {
 	return win;
 }
 
+/* ── Quick capture (fork #6, docs/today-inbox.md) ─────────────────────────
+ * ⌥⌘L anywhere opens a small always-on-top box (the /capture route) on the
+ * display under the cursor; Enter saves to the inbox and the page closes the
+ * window, Esc or clicking away closes it too. It is a TRUSTED app window (the
+ * desktop API header rides its /api calls) with the main window's navigation
+ * guards. One box at a time: the hotkey re-focuses an open one. */
+const CAPTURE_SHORTCUT = "Alt+CommandOrControl+L";
+const CAPTURE_W = 560;
+const CAPTURE_H = 132;
+let captureWin = null;
+
+function openCapture(url) {
+	if (captureWin && !captureWin.isDestroyed()) {
+		captureWin.show();
+		captureWin.focus();
+		return;
+	}
+	const { x, y, width } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+	const win = new BrowserWindow({
+		width: CAPTURE_W,
+		height: CAPTURE_H,
+		x: x + Math.round((width - CAPTURE_W) / 2),
+		y: y + 160,
+		frame: false,
+		resizable: false,
+		minimizable: false,
+		maximizable: false,
+		fullscreenable: false,
+		alwaysOnTop: true,
+		skipTaskbar: true,
+		show: false,
+		backgroundColor: "#141414",
+		webPreferences: {
+			contextIsolation: true,
+			sandbox: true,
+			nodeIntegration: false,
+			preload: path.join(__dirname, "preload.cjs"),
+		},
+	});
+	captureWin = win;
+	trustedAppWindows.add(win);
+	win.once("closed", () => {
+		trustedAppWindows.delete(win);
+		if (captureWin === win) captureWin = null;
+	});
+	win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+	const origin = new URL(url).origin;
+	win.webContents.on("will-navigate", (event, target) => {
+		if (new URL(target).origin !== origin) event.preventDefault();
+	});
+	win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+	win.on("blur", () => {
+		if (!win.isDestroyed()) win.close();
+	});
+	win.once("ready-to-show", () => {
+		win.show();
+		win.focus();
+		app.focus({ steal: true });
+	});
+	void win.loadURL(`${url}/capture`);
+}
+
+function registerCaptureShortcut(url) {
+	try {
+		if (!globalShortcut.register(CAPTURE_SHORTCUT, () => openCapture(url))) {
+			log(`capture: ${CAPTURE_SHORTCUT} is taken by another app — quick capture hotkey unavailable`);
+		}
+	} catch (err) {
+		log(`capture: shortcut registration failed (${err?.message ?? err})`);
+	}
+	app.on("will-quit", () => globalShortcut.unregisterAll());
+}
+
 /* ── Zoom (owner round 7, 2026-10-05): ⌘±/⌘0 as an OWNED ladder ──────────
  * The stock zoomIn/zoomOut roles change zoomLevel silently — the renderer
  * never learns the factor, and the native traffic lights (physical-fixed,
@@ -645,10 +718,13 @@ async function main() {
 		if (width < target) win.setBounds({ x, y, width: target, height });
 	});
 	app.on("activate", () => {
-		if (BrowserWindow.getAllWindows().length === 0) { chatgpt?.resume(); createWindow(url); }
+		// The capture box is not the app window — Dock activation with only
+		// the box open still brings the main window back.
+		if (BrowserWindow.getAllWindows().filter((w) => w !== captureWin).length === 0) { chatgpt?.resume(); createWindow(url); }
 	});
 	createWindow(url);
 	log(`window open: ${url}`);
+	registerCaptureShortcut(url);
 	// First update check AFTER the window exists (the downloaded-banner
 	// push needs a listener); dev builds no-op (no autoUpdater).
 	if (autoUpdater) {

@@ -31,6 +31,8 @@ import type {
 	GoalMessage,
 	RoadmapSuggestion,
 	SuggestionStatus,
+	InboxItem,
+	InboxStatus,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -248,3 +250,16 @@ export interface AuthStore {
 	deleteAuthVar(name: string): void;
 }
 
+// ─── InboxStore — captured items (data/inbox.json, fork #6) ─────────────────
+// One read-modify-write JSON list; the inbox service is the sole writer.
+// Every mutation announces inbox-changed.
+
+export interface InboxStore {
+	/** Every item, newest first. */
+	list(): InboxItem[];
+	add(text: string): InboxItem;
+	get(id: string): InboxItem | null;
+	update(id: string, patch: { status?: InboxStatus; chatId?: string; goalId?: string; touch?: boolean }): InboxItem;
+	/** Remove an item for good. False when the id is unknown. */
+	remove(id: string): boolean;
+}

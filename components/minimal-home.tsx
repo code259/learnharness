@@ -18,7 +18,7 @@
  * The practice pick flow mirrors GraphView's contract verbatim (home
  * lifts the pick set; the chip opens the overlay in select mode).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ListTreeIcon, UploadIcon } from "lucide-react";
 import { ChainTableOverlay } from "@/components/chain-table.tsx";
 import { GraphCostControl } from "@/components/graph-view.tsx";
@@ -85,7 +85,10 @@ export function MinimalHome({
 	practiceSelection,
 	onPracticeSelectionChange,
 	onChainSelectClose,
+	sideSlot,
 }: {
+	/** The home's Today panel (fork #2) — tail of the top-right column. */
+	sideSlot?: ReactNode;
 	/** The lifted pick set drives the overlay's select mode (Done instead
 	 * of the delete fence); the chip in home's composer reflects it. */
 	chainSelectOpen?: boolean;
@@ -196,6 +199,7 @@ export function MinimalHome({
 				</div>
 				<NotesImportErrors errors={notesImport.errors} />
 				{costs && costs.runs.length > 0 && <GraphCostControl costs={costs} />}
+				{sideSlot}
 			</div>
 
 			{/* The chain table — the STANDARD overlay, unchanged, behind its
