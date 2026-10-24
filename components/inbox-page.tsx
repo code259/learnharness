@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createPortal } from "react-dom";
 import { ArchiveIcon, ArchiveRestoreIcon, MapIcon, PlayIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import type { GoalSummary, InboxItem, InboxView } from "@/src/core";
 import { TopBar } from "@/components/top-bar";
-import { useBackdropDismiss } from "@/components/backdrop-dismiss";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useServerEvent, useServerResync } from "@/components/server-events";
 import { timeAgo } from "@/components/sidebar";
 import { cn } from "@/lib/utils";
@@ -272,71 +271,17 @@ function ArchivedRow({ item, post, onDelete }: { item: InboxItem; post: Post; on
 	);
 }
 
-/** The confirm step before a permanent delete (the session/roadmap dialogs'
- *  shape: red title, the item, Cancel + destructive Delete; Esc and the
- *  backdrop cancel). */
+/** The confirm step before a permanent delete (the shared dialog). */
 function DeleteForeverDialog({ item, onClose, post }: { item: InboxItem | null; onClose: () => void; post: Post }) {
-	const [busy, setBusy] = useState(false);
-	const busyRef = useRef(busy);
-	busyRef.current = busy;
-	const backdrop = useBackdropDismiss(() => {
-		if (!busyRef.current) onClose();
-	});
-	useEffect(() => {
-		if (!item) {
-			setBusy(false);
-			return;
-		}
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				e.preventDefault();
-				e.stopPropagation();
-				if (!busyRef.current) onClose();
-			}
-		};
-		document.addEventListener("keydown", onKey);
-		return () => document.removeEventListener("keydown", onKey);
-	}, [item, onClose]);
-	if (!item) return null;
-	return createPortal(
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80" {...backdrop}>
-			<div
-				role="dialog"
-				aria-modal="true"
-				aria-label="Delete inbox item"
-				data-testid="inbox-delete-dialog"
-				onClick={(e) => e.stopPropagation()}
-				className="w-[28rem] max-w-[calc(100vw-2rem)] rounded-xl border bg-card p-5 shadow-xl"
-			>
-				<h2 className="text-sm font-semibold text-destructive">Delete forever?</h2>
-				<p className="mt-2 line-clamp-4 whitespace-pre-wrap font-mono text-sm text-foreground">{item.text}</p>
-				<p className="mt-2 text-sm text-muted-foreground">This removes the item for good. It cannot be restored.</p>
-				<div className="mt-4 flex justify-end gap-2">
-					<button
-						type="button"
-						onClick={onClose}
-						disabled={busy}
-						className="rounded-sm px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
-					>
-						Cancel
-					</button>
-					<button
-						type="button"
-						data-testid="inbox-delete-confirm"
-						disabled={busy}
-						onClick={async () => {
-							setBusy(true);
-							const ok = await post(`/api/inbox/${item.id}`, undefined, "DELETE");
-							setBusy(false);
-							if (ok !== null) onClose();
-						}}
-						className="rounded-sm border border-destructive/50 bg-destructive/10 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-40"
-					>
-						{busy ? "Deleting…" : "Delete"}
-					</button>
-				</div>
-			</div>
-		</div>,
-		document.body,
+	return (
+		<ConfirmDialog
+			open={item !== null}
+			title="Delete forever?"
+			subject={item?.text}
+			body="This removes the item for good. It cannot be restored."
+			testid="inbox-delete-dialog"
+			onConfirm={async () => (item ? (await post(`/api/inbox/${item.id}`, undefined, "DELETE")) !== null : true)}
+			onClose={onClose}
+		/>
 	);
 }

@@ -55,4 +55,8 @@ export const artifactRenderers: Record<string, ComponentType<ArtifactPartProps>>
 	// a filed roadmap suggestion is a quiet trace like the fs tools.
 	offer_roadmap: RoadmapOfferCard,
 	suggest_roadmap_change: ToolCallCard,
+	// Library (fork #15): consult_book is a "pdf" job under the hood — the
+	// same dispatch card; list_books is a quiet trace.
+	consult_book: PdfJobCard,
+	list_books: ToolCallCard,
 };

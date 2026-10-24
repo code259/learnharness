@@ -37,6 +37,8 @@ export * from "./plan-tree.ts";
 export * from "./goals.ts";
 // today.ts (fork #2/#5): the pure Today plan folds — browser-safe.
 export * from "./today.ts";
+// library.ts (fork #15): book outline/coverage folds — browser-safe.
+export * from "./library.ts";
 export * from "./phases.ts";
 export * from "./pending.ts";
 export * from "./prompt-segments.ts";

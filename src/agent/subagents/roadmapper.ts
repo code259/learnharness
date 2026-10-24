@@ -176,3 +176,82 @@ export async function runRoadmapper(req: RoadmapperRequest, opts: RoadmapperRunO
 	});
 	return text.trim();
 }
+
+// ─── books (library, fork #15) ───────────────────────────────────────────────
+
+/**
+ * The task wrapper for a goal that FOLLOWS a book ("Study this book" — the
+ * one opt-in book-following mode). Every other goal's task passes through
+ * untouched: no book content ever reaches a normal roadmap draft (the
+ * guardrail; pinned in tests).
+ */
+export function roadmapTaskFor(task: string, followedBook: { title: string; outline: string } | null): string {
+	if (!followedBook) return task;
+	return [
+		task,
+		`This goal is to WORK THROUGH the book “${followedBook.title}” — the learner chose to follow it. Build the map around the book's structure (chapters or groups of sections as topics, in a sensible prerequisite order), still leaving out what he already holds and adding a foundation topic where the book assumes something he lacks. Topic summaries name the book pages they cover.`,
+		`The book's outline (PDF pages):\n${followedBook.outline}`,
+	].join("\n\n");
+}
+
+export const COMPARE_INSTRUCTIONS = `You compare a learner's long-term ROADMAP against the reference books pinned to that goal, inside a learning application.
+
+The books are references and yardsticks — never the curriculum. Your only output is SUGGESTIONS the learner may apply or dismiss on the roadmap page; you cannot change the roadmap.
+
+File a suggestion (file_suggestion) only for something that (a) a book covers in substance, (b) genuinely matters for the learner's goal, (c) the roadmap does not already cover, and (d) the learner does not already hold (sections marked covered). One suggestion per gap, phrased as a topic to add or a change to a topic, naming the book section and pages as evidence. At most 6 suggestions, the most important first. Never suggest reorganizing the roadmap to follow a book's order. If nothing qualifies, file nothing.
+
+Then reply in two or three plain sentences: what you compared and what you filed (or that the roadmap already covers what matters).`;
+
+export interface CompareBook {
+	id: string;
+	title: string;
+	/** Per section: title, pages, coverage, key ideas. */
+	sectionLines: string[];
+}
+
+export async function runRoadmapCompare(
+	req: { goalStatement: string; roadmapLines: readonly string[]; books: readonly CompareBook[] },
+	opts: {
+		engine: PiEngine;
+		fileSuggestion: (bookId: string, text: string) => void;
+		graph?: { chatStore: ChatStore; graphStore: GraphStore };
+		abortSignal?: AbortSignal;
+		onUsage?: (usage: Usage) => void;
+	},
+): Promise<string> {
+	const ids = new Set(req.books.map((b) => b.id));
+	const fileInput = Type.Object({
+		book: Type.String({ minLength: 1, description: "The book id the gap comes from." }),
+		suggestion: Type.String({ minLength: 1, description: "The topic to add or change, with the book section + pages as evidence." }),
+	});
+	let filed = 0;
+	const fileTool: AgentTool<any> = {
+		name: "file_suggestion",
+		label: "file_suggestion",
+		description: "File one roadmap suggestion (the learner applies or dismisses it). At most 6 per comparison.",
+		parameters: fileInput,
+		execute: serverExecute("file_suggestion", fileInput, async ({ book, suggestion }) => {
+			if (!ids.has(book)) return { ok: false, error: `Unknown book id "${book}" — use one of: ${[...ids].join(", ")}` };
+			if (filed >= 6) return { ok: false, error: "Six suggestions already filed — stop and reply." };
+			opts.fileSuggestion(book, suggestion);
+			filed++;
+			return { ok: true };
+		}),
+	};
+	const prompt = [
+		`The learner's goal: ${req.goalStatement}`,
+		req.roadmapLines.length > 0 ? `The roadmap (topic: derived status):\n${req.roadmapLines.join("\n")}` : "The roadmap is empty.",
+		...req.books.map((b) => `Book [${b.id}] ${b.title} — sections (coverage of his knowledge; key ideas):\n${b.sectionLines.join("\n")}`),
+		"Compare now.",
+	].join("\n\n");
+	const { text } = await runSubagent([fileTool, ...(opts.graph ? Object.values(proberGraphTools(opts.graph)) : [])], {
+		role: "roadmapper",
+		engine: opts.engine,
+		systemPrompt: COMPARE_INSTRUCTIONS,
+		prompt,
+		maxTurns: 12,
+		abortSignal: opts.abortSignal,
+		onUsage: opts.onUsage,
+	});
+	return text.trim();
+}

@@ -365,6 +365,16 @@ function projectMarker(marker: LhMarkerMessage, out: LhViewMessage[]): void {
 			});
 			return;
 		}
+		case "book-context": {
+			// A "Learn this section" session's book context (fork #15): the
+			// same user-side card treatment as the goal context.
+			out.push({
+				id: marker.id,
+				role: "user",
+				parts: [{ type: "data-book-context", id: `bkc_${marker.id}`, data: marker.details }],
+			});
+			return;
+		}
 		case "probe-handoff": {
 			out.push({
 				id: marker.id,

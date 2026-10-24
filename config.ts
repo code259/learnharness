@@ -30,6 +30,8 @@ export const PATHS = {
 	goals: path.join(DATA_ROOT, "goals"),
 	/** The inbox (fork #6): one small JSON list. */
 	inbox: path.join(DATA_ROOT, "inbox.json"),
+	/** The library (fork #15): data/library/<bookId>/{book.pdf, book.json}. */
+	library: path.join(DATA_ROOT, "library"),
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),
@@ -59,7 +61,10 @@ export type ModelRole =
 	| "auditor"
 	/** The roadmap agent (goals, fork #4): drafts and revises roadmaps —
 	 *  conversation-grade planning, so it rides the STRONG slot. */
-	| "roadmapper";
+	| "roadmapper"
+	/** The library's background reader (fork #15): book maps (outline
+	 *  fallback + key ideas) and coverage judging — bulk work, CHEAP slot. */
+	| "librarian";
 
 /**
  * The LIVE graph store (src/store/graph.ts) — owned by the app's extraction

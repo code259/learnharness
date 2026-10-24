@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlayIcon, RefreshCwIcon, SendIcon, XIcon } from "lucide-react";
-import type { GoalStatus, GoalView, PlanNodeStatus, TopicView } from "@/src/core";
+import { BookOpenIcon, CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlayIcon, RefreshCwIcon, SendIcon, XIcon } from "lucide-react";
+import type { BookSummary, GoalStatus, GoalView, PlanNodeStatus, TopicView } from "@/src/core";
+import { coverageLine } from "@/components/library-page";
 import { TopBar } from "@/components/top-bar";
 import { PlanDiagram, GRAPH_PAD } from "@/components/plan-block";
 import { BrailleSpinner } from "@/components/braille-spinner";
@@ -65,6 +66,8 @@ export function GoalPage({ initialView }: { initialView: GoalView }) {
 	const [error, setError] = useState<string | null>(null);
 	const [starting, setStarting] = useState<string | null>(null);
 	const [renaming, setRenaming] = useState(false);
+	/** Library summaries for this goal's pinned books (fork #15). */
+	const [books, setBooks] = useState<BookSummary[]>([]);
 	const goalId = initialView.id;
 
 	const refresh = useCallback(async () => {
@@ -74,7 +77,14 @@ export function GoalPage({ initialView }: { initialView: GoalView }) {
 				router.push("/");
 				return;
 			}
-			if (res.ok) setView((await res.json()) as GoalView);
+			if (res.ok) {
+				const next = (await res.json()) as GoalView;
+				setView(next);
+				if (next.bookIds.length > 0) {
+					const lib = await fetch("/api/library", { cache: "no-store" });
+					if (lib.ok) setBooks(((await lib.json()) as { books: BookSummary[] }).books.filter((b) => next.bookIds.includes(b.id)));
+				} else setBooks([]);
+			}
 		} catch {
 			// a transient failure keeps the last view
 		}
@@ -86,7 +96,13 @@ export function GoalPage({ initialView }: { initialView: GoalView }) {
 		if (debounceRef.current) clearTimeout(debounceRef.current);
 		debounceRef.current = setTimeout(() => void refresh(), 250);
 	}, [refresh]);
+	// One fetch on mount: the server render has no book summaries (the
+	// pinned-books block), and the view may have moved since render.
+	useEffect(() => {
+		void refresh();
+	}, [refresh]);
 	useServerEvent("goals-changed", schedule);
+	useServerEvent("library-changed", schedule);
 	useServerEvent("chats-changed", schedule);
 	useServerEvent("turn-settled", schedule);
 	useServerResync(() => void refresh());
@@ -211,6 +227,31 @@ export function GoalPage({ initialView }: { initialView: GoalView }) {
 						view.topics.length > 0 && <RoadmapDiagram view={view} glowId={next?.id ?? null} />
 					)}
 
+					{books.length > 0 && (
+						<div className="space-y-2" data-testid="goal-books">
+							<div className="flex items-center gap-2">
+								<h2 className="text-xs uppercase tracking-widest text-muted-foreground/70">Pinned books</h2>
+								<button
+									type="button"
+									disabled={view.working || !books.some((b) => b.status === "ready")}
+									onClick={() => void post(`/api/goals/${goalId}/compare`)}
+									data-testid="compare-books"
+									className="ml-auto flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+								>
+									Compare with my roadmap
+								</button>
+							</div>
+							{books.map((b) => (
+								<Link key={b.id} href={`/library/${b.id}`} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+									<BookOpenIcon className="size-3.5 shrink-0" />
+									<span className="min-w-0 flex-1 truncate text-foreground/90">{b.title}</span>
+									<span className="shrink-0">{coverageLine(b)}</span>
+									{b.working && <BrailleSpinner />}
+								</Link>
+							))}
+						</div>
+					)}
+
 					{available.length > 0 && (
 						<div className="space-y-2">
 							<h2 className="text-xs uppercase tracking-widest text-muted-foreground/70">Next up</h2>
@@ -274,8 +315,11 @@ export function GoalPage({ initialView }: { initialView: GoalView }) {
 								<div key={s.id} className="rounded-lg border border-dashed border-border/70 px-3 py-2 text-xs">
 									<p className="leading-relaxed text-foreground/90">{s.text}</p>
 									<div className="mt-2 flex items-center gap-2">
-										<Link href={`/chat/${s.chatId}`} className="min-w-0 flex-1 truncate text-muted-foreground hover:text-foreground">
-											From a session · {timeAgo(s.createdAt)}
+										<Link
+											href={s.bookId ? `/library/${s.bookId}` : `/chat/${s.chatId}`}
+											className="min-w-0 flex-1 truncate text-muted-foreground hover:text-foreground"
+										>
+											{s.bookId ? `From ${books.find((b) => b.id === s.bookId)?.title ?? "a book"}` : "From a session"} · {timeAgo(s.createdAt)}
 										</Link>
 										<button
 											type="button"

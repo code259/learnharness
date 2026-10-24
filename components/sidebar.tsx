@@ -7,7 +7,7 @@ import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
 import { DeleteGoalDialog } from "@/components/delete-goal-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { ChevronRightIcon, DumbbellIcon, InboxIcon, MapIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { BookOpenIcon, ChevronRightIcon, DumbbellIcon, InboxIcon, MapIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
 import { LhMark } from "@/components/lh-mark";
@@ -860,6 +860,17 @@ function SessionsSidebar() {
 					>
 						<InboxIcon className="size-3" />
 						Inbox
+					</Link>
+					<Link
+						href="/library"
+						data-testid="sidebar-library"
+						className={cn(
+							"flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+							pathname.startsWith("/library") && "bg-accent text-foreground",
+						)}
+					>
+						<BookOpenIcon className="size-3" />
+						Library
 					</Link>
 				</div>
 

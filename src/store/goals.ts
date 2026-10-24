@@ -70,7 +70,7 @@ function mutate(id: string, change: (record: GoalRecord) => void): GoalRecord {
 	return record;
 }
 
-function createGoal(input: { title: string; statement: string }): GoalRecord {
+function createGoal(input: { title: string; statement: string; followsBookId?: string }): GoalRecord {
 	const now = new Date().toISOString();
 	const record: GoalRecord = {
 		id: mint("goal"),
@@ -82,6 +82,7 @@ function createGoal(input: { title: string; statement: string }): GoalRecord {
 		roadmap: null,
 		messages: [],
 		suggestions: [],
+		...(input.followsBookId ? { followsBookId: input.followsBookId, bookIds: [input.followsBookId] } : {}),
 	};
 	writeGoal(record);
 	return { ...record, version: CURRENT_GOAL_VERSION };
@@ -113,8 +114,9 @@ function appendMessage(id: string, message: Omit<GoalMessage, "id" | "createdAt"
 	});
 }
 
-function update(id: string, patch: { title?: string; statement?: string; status?: GoalStatus; lastError?: string | null }): GoalRecord {
+function update(id: string, patch: { title?: string; statement?: string; status?: GoalStatus; lastError?: string | null; bookIds?: string[] }): GoalRecord {
 	return mutate(id, (r) => {
+		if (patch.bookIds !== undefined) r.bookIds = [...new Set(patch.bookIds)];
 		if (patch.title !== undefined && patch.title.trim()) r.title = patch.title.trim();
 		if (patch.statement !== undefined && patch.statement.trim()) r.statement = patch.statement.trim();
 		if (patch.status !== undefined) r.status = patch.status;
@@ -123,10 +125,11 @@ function update(id: string, patch: { title?: string; statement?: string; status?
 	});
 }
 
-function addSuggestion(id: string, input: { chatId: string; text: string }): RoadmapSuggestion {
+function addSuggestion(id: string, input: { chatId: string; text: string; bookId?: string }): RoadmapSuggestion {
 	const suggestion: RoadmapSuggestion = {
 		id: mint("sg"),
 		chatId: input.chatId,
+		...(input.bookId ? { bookId: input.bookId } : {}),
 		text: input.text.trim(),
 		createdAt: new Date().toISOString(),
 		status: "open",

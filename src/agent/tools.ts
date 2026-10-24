@@ -20,6 +20,7 @@ import { planTools, type PlanToolContext } from "./tools/plan.ts";
 import { probeDoneTool, type ProbeDoneContext } from "./tools/probe.ts";
 import { proberGraphTools } from "./tools/graph.ts";
 import { offerRoadmapTool, suggestRoadmapTool, type OfferRoadmapContext, type SuggestRoadmapContext } from "./tools/goals.ts";
+import { consultBookTool, listBooksTool, type LibraryToolContext } from "./tools/library.ts";
 import { readTool } from "./tools/read.ts";
 import { lsTool } from "./tools/ls.ts";
 import { findTool } from "./tools/find.ts";
@@ -281,6 +282,8 @@ export interface ProberToolContext extends ProbeDoneContext {
 	 *  offer), `suggest` for a session linked to a roadmap topic. The
 	 *  composition root decides from the record's goalTopic. */
 	goals?: { offer?: OfferRoadmapContext; suggest?: SuggestRoadmapContext };
+	/** The library (fork #15): the prober gets list_books only. */
+	library?: Pick<LibraryToolContext, "listBooks">;
 }
 
 /** The prober's tool set: probe quiz (no nodeId) + ask + the learner-fs
@@ -346,6 +349,7 @@ export function createProberTools(
 					: {}),
 				...(ctx.goals?.offer ? offerRoadmapTool(ctx.goals.offer) : {}),
 				...(ctx.goals?.suggest ? suggestRoadmapTool(ctx.goals.suggest) : {}),
+				...(ctx.library ? listBooksTool(ctx.library) : {}),
 				...done,
 			},
 				withoutMechanics(enabled),
@@ -410,6 +414,8 @@ export interface TeacherToolContext extends PlanToolContext {
 	/** Goal tools (fork #4): present only when the session is linked to a
 	 *  roadmap topic — the teacher can file roadmap suggestions. */
 	goals?: { suggest?: SuggestRoadmapContext };
+	/** The library (fork #15): list_books + consult_book. */
+	library?: LibraryToolContext;
 }
 
 /**
@@ -470,6 +476,12 @@ export function createTeacherTools(
 			...planTools(ctx),
 			...jobTools({ chatId: ctx.chatId, jobStore: ctx.jobStore, spawn: ctx.spawn, searchAvailable: ctx.searchAvailable }),
 			...(ctx.goals?.suggest ? suggestRoadmapTool(ctx.goals.suggest) : {}),
+			...(ctx.library
+				? {
+						...listBooksTool(ctx.library),
+						...consultBookTool({ ...ctx.library, chatId: ctx.chatId, jobStore: ctx.jobStore, spawn: ctx.spawn, searchAvailable: ctx.searchAvailable }),
+					}
+				: {}),
 		},
 		withoutMechanics(enabled),
 		),

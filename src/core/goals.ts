@@ -168,6 +168,8 @@ export function deriveGoalView(goal: GoalRecord, sessions: readonly LinkedSessio
 		working,
 		...(goal.lastError ? { lastError: goal.lastError } : {}),
 		orphanSessions,
+		bookIds: goal.bookIds ?? [],
+		followsBookId: goal.followsBookId ?? null,
 	};
 }
 

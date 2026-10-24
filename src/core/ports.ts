@@ -33,6 +33,7 @@ import type {
 	SuggestionStatus,
 	InboxItem,
 	InboxStatus,
+	BookRecord,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -81,7 +82,7 @@ export interface ChatStore {
 // sole writer. Every mutation bumps updatedAt and announces goals-changed.
 
 export interface GoalStore {
-	createGoal(input: { title: string; statement: string }): GoalRecord;
+	createGoal(input: { title: string; statement: string; followsBookId?: string }): GoalRecord;
 	/** The record, or null (unknown id / corrupt / newer-schema file). */
 	getGoal(id: string): GoalRecord | null;
 	/** Every readable goal, newest activity first. */
@@ -89,8 +90,8 @@ export interface GoalStore {
 	/** Replace the roadmap (already validated by createTree). */
 	saveRoadmap(id: string, roadmap: PlanTree): GoalRecord;
 	appendMessage(id: string, message: Omit<GoalMessage, "id" | "createdAt">): GoalRecord;
-	update(id: string, patch: { title?: string; statement?: string; status?: GoalStatus; lastError?: string | null }): GoalRecord;
-	addSuggestion(id: string, input: { chatId: string; text: string }): RoadmapSuggestion;
+	update(id: string, patch: { title?: string; statement?: string; status?: GoalStatus; lastError?: string | null; bookIds?: string[] }): GoalRecord;
+	addSuggestion(id: string, input: { chatId: string; text: string; bookId?: string }): RoadmapSuggestion;
 	setSuggestionStatus(id: string, suggestionId: string, status: SuggestionStatus): GoalRecord;
 	deleteGoal(id: string): boolean;
 }
@@ -262,4 +263,22 @@ export interface InboxStore {
 	update(id: string, patch: { status?: InboxStatus; chatId?: string; goalId?: string; touch?: boolean }): InboxItem;
 	/** Remove an item for good. False when the id is unknown. */
 	remove(id: string): boolean;
+}
+
+// ─── LibraryStore — books (data/library/<id>/, fork #15) ────────────────────
+// A directory per book: the copied PDF + book.json. The library service is
+// the sole writer; every save announces library-changed.
+
+export interface LibraryStore {
+	/** Create the book's directory + record (status "indexing"); the caller
+	 *  then writes the PDF to pdfPath(id). */
+	createBook(input: { title: string; source: BookRecord["source"]; pageCount: number }): BookRecord;
+	getBook(id: string): BookRecord | null;
+	/** Every readable book, newest first. */
+	listBooks(): BookRecord[];
+	/** Replace the whole record (updatedAt stamped). */
+	saveBook(record: BookRecord): BookRecord;
+	/** The book's PDF copy (may not exist yet for a book mid-creation). */
+	pdfPath(id: string): string;
+	deleteBook(id: string): boolean;
 }

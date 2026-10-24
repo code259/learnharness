@@ -28,29 +28,20 @@ import {
 import { createTree } from "../core/plan-tree.ts";
 import { newGoalContextMessage } from "../core/native-messages.ts";
 import { emit } from "../core/events.ts";
-import { modelsNotConfigured, providerKeyMissing } from "../core/settings.ts";
-import { graphToolsEnabled, resolveRoleSpec } from "../core/settings-resolution.ts";
-import { piEngineForSpec, type PiEngine } from "../agent/models.ts";
-import { chatGPTBackgroundAllowed } from "../agent/chatgpt-bridge.ts";
-import { runRoadmapper } from "../agent/subagents/roadmapper.ts";
+import { graphToolsEnabled } from "../core/settings-resolution.ts";
+import type { PiEngine } from "../agent/models.ts";
+import { roadmapTaskFor, runRoadmapCompare, runRoadmapper } from "../agent/subagents/roadmapper.ts";
+import { chapterViews } from "../core/library.ts";
+import { bookOutline } from "./library.ts";
 import type { OfferRoadmapInput } from "../agent/tools/goals.ts";
 import { effectiveSettings, stores } from "./stores.ts";
-import { providerKeyPresent } from "./keys.ts";
 import { searchProvider } from "./search.ts";
-import { refreshConnectionCatalog } from "./model-catalog.ts";
+import { engineForRole } from "./agent-engines.ts";
 import { deleteChatSession, stampStrongSlot } from "./chats.ts";
 import { isTurnRunning } from "./turn-liveness.ts";
 
-/** A refusal the routes map to HTTP (status + message). */
-export class GoalServiceError extends Error {
-	constructor(
-		message: string,
-		readonly status: 400 | 404 | 409 | 503,
-	) {
-		super(message);
-		this.name = "GoalServiceError";
-	}
-}
+import { GoalServiceError } from "./agent-engines.ts";
+export { GoalServiceError };
 
 /** Route helper: run a service call, mapping GoalServiceError to its HTTP
  *  status (anything else is a real 500 and rethrows). */
@@ -126,51 +117,28 @@ function mustGoal(goalId: string): GoalRecord {
 
 // ─── the roadmap agent ───────────────────────────────────────────────────────
 
-/** The roadmapper's engine — the BYOK chain for its role (the strong slot),
- *  with the same honest refusals as a turn: no model, no provider key, or
- *  ChatGPT background use off for an automatic run. */
-async function roadmapEngine(background: boolean): Promise<PiEngine> {
-	const spec = resolveRoleSpec("roadmapper", stores.settingsStore.readSettings());
-	if (!spec) throw new GoalServiceError(modelsNotConfigured(["strong"]).error, 503);
-	if (spec.provider === "chatgpt") {
-		await refreshConnectionCatalog();
-		if (background && !chatGPTBackgroundAllowed()) {
-			throw new GoalServiceError(
-				"ChatGPT background use is off, so the roadmap can't be drafted automatically. Ask for it on the roadmap page, or allow background use in Providers.",
-				503,
-			);
-		}
-	}
-	if (!providerKeyPresent(spec.provider)) throw new GoalServiceError(providerKeyMissing(spec.provider, ["strong"]).error, 503);
-	return piEngineForSpec(spec, background);
+/** The roadmapper's engine — the strong slot (src/server/agent-engines.ts). */
+function roadmapEngine(background: boolean): Promise<PiEngine> {
+	return engineForRole(
+		"roadmapper",
+		background,
+		"ChatGPT background use is off, so the roadmap can't be drafted automatically. Ask for it on the roadmap page, or allow background use in Providers.",
+	);
 }
 
 /**
- * One roadmap-agent run, fire-and-forget. Single-flight per goal (a second
+ * One goal-agent run, fire-and-forget. Single-flight per goal (a second
  * request while one runs is a 409 for the caller). The reply lands in the
  * goal's conversation; a failure lands in lastError (shown on the page).
  */
-function startRoadmapRun(goalId: string, task: string, background: boolean): void {
+function startGoalRun(goalId: string, background: boolean, work: (engine: PiEngine, goal: GoalRecord) => Promise<string>): void {
 	if (isRoadmapRunning(goalId)) throw new GoalServiceError("The roadmap is already being updated", 409);
 	runs().add(goalId);
 	emit("goals-changed", {});
 	void (async () => {
 		try {
 			const engine = await roadmapEngine(background);
-			const goal = mustGoal(goalId);
-			const view = deriveGoalView(goal, linkedSessions(), true);
-			const pinned = [...view.topics.filter((t) => t.sessions.length > 0).map((t) => t.id)];
-			const effective = effectiveSettings();
-			const reply = await runRoadmapper(
-				{ goalStatement: goal.statement, roadmapLines: roadmapStatusLines(view), history: goal.messages, task },
-				{
-					engine,
-					pinnedTopicIds: pinned,
-					save: (roadmap: PlanTree) => void stores.goalStore.saveRoadmap(goalId, roadmap),
-					search: searchProvider,
-					...(graphToolsEnabled(effective) ? { graph: { chatStore: stores.chatStore, graphStore: stores.graphStore } } : {}),
-				},
-			);
+			const reply = await work(engine, mustGoal(goalId));
 			if (reply) stores.goalStore.appendMessage(goalId, { role: "assistant", text: reply });
 			stores.goalStore.update(goalId, { lastError: null });
 		} catch (err) {
@@ -182,6 +150,79 @@ function startRoadmapRun(goalId: string, task: string, background: boolean): voi
 			emit("goals-changed", {});
 		}
 	})();
+}
+
+/** A drafting/revising run. Only a goal that FOLLOWS a book ("Study this
+ *  book") gets the book's outline in its task (roadmapTaskFor). */
+function startRoadmapRun(goalId: string, task: string, background: boolean): void {
+	startGoalRun(goalId, background, async (engine, goal) => {
+		const view = deriveGoalView(goal, linkedSessions(), true);
+		const pinned = [...view.topics.filter((t) => t.sessions.length > 0).map((t) => t.id)];
+		const effective = effectiveSettings();
+		const followed = goal.followsBookId ? bookOutline(goal.followsBookId) : null;
+		return runRoadmapper(
+			{ goalStatement: goal.statement, roadmapLines: roadmapStatusLines(view), history: goal.messages, task: roadmapTaskFor(task, followed) },
+			{
+				engine,
+				pinnedTopicIds: pinned,
+				save: (roadmap: PlanTree) => void stores.goalStore.saveRoadmap(goalId, roadmap),
+				search: searchProvider,
+				...(graphToolsEnabled(effective) ? { graph: { chatStore: stores.chatStore, graphStore: stores.graphStore } } : {}),
+			},
+		);
+	});
+}
+
+// ─── books (library, fork #15) ───────────────────────────────────────────────
+
+/** "Compare with my roadmap": the roadmap agent in COMPARE mode — it can
+ *  only file suggestions (never rewrite the map), from the goal's pinned
+ *  books' sections, coverage, and key ideas. */
+export function compareWithBooks(goalId: string): void {
+	const goal = mustGoal(goalId);
+	const books = (goal.bookIds ?? []).map((id) => stores.libraryStore.getBook(id)).filter((b) => b !== null && b.status === "ready");
+	if (books.length === 0) throw new GoalServiceError("Pin a book that has finished indexing first", 409);
+	stores.goalStore.appendMessage(goalId, { role: "user", text: `Compare my roadmap with ${books.map((b) => b!.title).join(", ")}.` });
+	startGoalRun(goalId, false, async (engine, g) => {
+		const view = deriveGoalView(g, linkedSessions(), true);
+		const effective = effectiveSettings();
+		return runRoadmapCompare(
+			{
+				goalStatement: g.statement,
+				roadmapLines: roadmapStatusLines(view),
+				books: books.map((b) => ({
+					id: b!.id,
+					title: b!.title,
+					sectionLines: chapterViews(b!.chapters, b!.coverage).flatMap((c) =>
+						c.sections.map((s) => `- ${c.title} › ${s.title} (pp. ${s.startPage}–${s.endPage}) [${s.coverage}]: ${s.ideas.join("; ")}`),
+					),
+				})),
+			},
+			{
+				engine,
+				fileSuggestion: (bookId, text) => void stores.goalStore.addSuggestion(goalId, { chatId: "", text, bookId }),
+				...(graphToolsEnabled(effective) ? { graph: { chatStore: stores.chatStore, graphStore: stores.graphStore } } : {}),
+			},
+		);
+	});
+}
+
+/** "Study this book" — the opt-in book-following goal: pinned, marked as
+ *  following the book, and drafted from its outline. Returns the goal id
+ *  (an existing study goal for the book is reused). */
+export function studyBook(bookId: string): { goalId: string } {
+	const book = stores.libraryStore.getBook(bookId);
+	if (!book) throw new GoalServiceError("Book not found", 404);
+	if (book.status !== "ready") throw new GoalServiceError("The book is still being read — try again when it's ready", 409);
+	const existing = stores.goalStore.listGoals().find((g) => g.followsBookId === bookId);
+	if (existing) return { goalId: existing.id };
+	const goal = stores.goalStore.createGoal({
+		title: `Study: ${book.title}`,
+		statement: `Work through the book “${book.title}”, tailored to what I already know.`,
+		followsBookId: bookId,
+	});
+	startRoadmapRun(goal.id, "Draft the full roadmap for this goal now.", false);
+	return { goalId: goal.id };
 }
 
 /** The roadmap page's composer: record the learner's message, then run the
@@ -262,14 +303,13 @@ export function resolveSuggestion(goalId: string, suggestionId: string, action: 
 		return;
 	}
 	if (isRoadmapRunning(goalId)) throw new GoalServiceError("The roadmap is already being updated", 409);
-	const session = stores.chatStore.getChat(suggestion.chatId)?.title ?? "a linked session";
+	const book = suggestion.bookId ? stores.libraryStore.getBook(suggestion.bookId)?.title : undefined;
+	const origin = book
+		? `the comparison with the book “${book}”`
+		: `the session “${stores.chatStore.getChat(suggestion.chatId)?.title ?? "a linked session"}”`;
 	stores.goalStore.setSuggestionStatus(goalId, suggestionId, "applied");
-	stores.goalStore.appendMessage(goalId, { role: "user", text: `Apply the suggestion from “${session}”: ${suggestion.text}` });
-	startRoadmapRun(
-		goalId,
-		`The learner accepted this suggestion, filed by the teaching agent during the session “${session}”:\n${suggestion.text}\nRevise the roadmap accordingly.`,
-		false,
-	);
+	stores.goalStore.appendMessage(goalId, { role: "user", text: `Apply the suggestion from ${origin}: ${suggestion.text}` });
+	startRoadmapRun(goalId, `The learner accepted this suggestion, from ${origin}:\n${suggestion.text}\nRevise the roadmap accordingly.`, false);
 }
 
 // ─── topic sessions ──────────────────────────────────────────────────────────

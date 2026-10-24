@@ -68,6 +68,7 @@ export interface LhMarkerMessage {
 	customType:
 		| "graph-context"
 		| "goal-context"
+		| "book-context"
 		| "probe-handoff"
 		| "subagent-steer"
 		| "subagent-abort"
@@ -282,6 +283,54 @@ export function newGoalContextMessage(input: {
 			topicId: input.topicId,
 			topicTitle: input.topicTitle,
 		} satisfies GoalContextDetails,
+		timestamp: Date.now(),
+	};
+}
+
+/** The book-context marker's UI payload (library, fork #15). */
+export interface BookContextDetails {
+	bookId: string;
+	bookTitle: string;
+	sectionTitle: string;
+	startPage: number;
+	endPage: number;
+}
+
+/** "Learn this section" (library, fork #15): message[0] of a session the
+ *  learner deliberately started from a book section — the ONE place a book
+ *  shapes a session's goal (the opt-in mode). Still a normal probe → plan →
+ *  teach: the section fixes the goal, the prober measures, the teacher uses
+ *  the book as primary reference via consult_book. */
+export function newBookContextMessage(input: {
+	bookId: string;
+	bookTitle: string;
+	sectionTitle: string;
+	startPage: number;
+	endPage: number;
+	ideas: readonly string[];
+}): LhMarkerMessage {
+	const lines = [
+		"[Session context] — the learner chose to learn this section of a book from their library:",
+		"",
+		`Book: ${input.bookTitle} (library id ${input.bookId})`,
+		`Section: ${input.sectionTitle} (pp. ${input.startPage}–${input.endPage})`,
+		...(input.ideas.length > 0 ? ["", "The section's key ideas:", ...input.ideas.map((i) => `- ${i}`)] : []),
+		"",
+		"This section is the session's goal and the book is its primary reference (consult_book). Teach it tailored to what the learner already holds — the book's order is not the lesson's order.",
+	];
+	return {
+		id: newMessageId(),
+		role: "custom",
+		customType: "book-context",
+		content: lines.join("\n"),
+		display: true,
+		details: {
+			bookId: input.bookId,
+			bookTitle: input.bookTitle,
+			sectionTitle: input.sectionTitle,
+			startPage: input.startPage,
+			endPage: input.endPage,
+		} satisfies BookContextDetails,
 		timestamp: Date.now(),
 	};
 }
@@ -733,7 +782,7 @@ export function nativeInputCause(message: AgentMessage, history: readonly AgentM
 	if (message.role === "custom") {
 		if (["probe-handoff", "subagent-steer", "subagent-abort"].includes(message.customType)) return "automatic";
 		if (["practice-thinking", "practice-next"].includes(message.customType)) return "learner";
-		return ["graph-context", "goal-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
+		return ["graph-context", "goal-context", "book-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
 	}
 	if (message.role === "toolResult") {
 		if (!(QUESTION_TOOLS as readonly string[]).includes(message.toolName) || message.isError || message.details == null || (message.details as { dismissed?: boolean }).dismissed) return "neutral";
