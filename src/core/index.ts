@@ -35,6 +35,8 @@ export * from "./plan-tree.ts";
 // goals.ts (fork #4, 2026-10-24): the pure goal/roadmap folds — the roadmap
 // page and sidebar render derived views; browser-safe.
 export * from "./goals.ts";
+// today.ts (fork #2/#5): the pure Today plan folds — browser-safe.
+export * from "./today.ts";
 export * from "./phases.ts";
 export * from "./pending.ts";
 export * from "./prompt-segments.ts";

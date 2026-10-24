@@ -12,6 +12,7 @@ import { DictationBar, joinDictation, useDictation } from "@/components/dictatio
 import { useFieldCycle } from "@/components/field-cycle";
 import { SidebarToggle } from "@/components/sidebar";
 import { StatsBar } from "@/components/stats-bar";
+import { TodayPanel } from "@/components/today-panel";
 import type { TurnUsage } from "@/src/core";
 
 /**
@@ -179,6 +180,7 @@ export function Home({
 			<main className="absolute inset-0">
 				{rendering ? (
 					<GraphView
+						sideSlot={<TodayPanel />}
 						chainSelectOpen={chainSelectOpen}
 						practiceSelection={pickedIds}
 						onPracticeSelectionChange={setPracticeProps}
@@ -186,6 +188,7 @@ export function Home({
 					/>
 				) : (
 					<MinimalHome
+						sideSlot={<TodayPanel />}
 						chainSelectOpen={chainSelectOpen}
 						practiceSelection={pickedIds}
 						onPracticeSelectionChange={setPracticeProps}

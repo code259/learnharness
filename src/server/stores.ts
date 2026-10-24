@@ -10,6 +10,7 @@ import { chatStore } from "../store/chats.ts";
 import { graphStore } from "../store/graph.ts";
 import { jobStore } from "../store/jobs.ts";
 import { goalStore } from "../store/goals.ts";
+import { inboxStore } from "../store/inbox.ts";
 import { settingsStore } from "../store/settings.ts";
 import { resolveSettings, type EffectiveSettings } from "../core/settings-resolution.ts";
 /** The wired adapters. Satisfies core/graph.ts's GraphDeps structurally. */
@@ -19,6 +20,7 @@ export const stores = {
 	jobStore,
 	settingsStore,
 	goalStore,
+	inboxStore,
 };
 
 export type Stores = typeof stores;

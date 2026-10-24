@@ -28,6 +28,8 @@ export const PATHS = {
 	graph: path.join(DATA_ROOT, "graph"),
 	/** Goals + roadmaps (fork #4): one JSON file per goal. */
 	goals: path.join(DATA_ROOT, "goals"),
+	/** The inbox (fork #6): one small JSON list. */
+	inbox: path.join(DATA_ROOT, "inbox.json"),
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),
