@@ -50,8 +50,10 @@ export type SuggestionStatus = "open" | "applied" | "dismissed";
  *  applies (the roadmap agent revises) or dismisses it on the roadmap page. */
 export interface RoadmapSuggestion {
 	id: string;
-	/** The session it came from. */
+	/** The session it came from ("" for a book comparison). */
 	chatId: string;
+	/** The pinned book a "Compare with my roadmap" suggestion came from. */
+	bookId?: string;
 	text: string;
 	createdAt: string;
 	status: SuggestionStatus;
@@ -76,6 +78,13 @@ export interface GoalRecord {
 	/** The last roadmap-agent failure, shown on the page until the next
 	 *  successful run clears it. */
 	lastError?: string;
+	/** Library books pinned to this goal (fork #15): PREFERRED when a
+	 *  session consults a book, measured against on "Compare with my
+	 *  roadmap" — never a source the roadmap is drafted from. */
+	bookIds?: string[];
+	/** Set only by "Study this book": the one kind of goal whose roadmap
+	 *  follows a book's structure (the opt-in book-following mode). */
+	followsBookId?: string;
 	/** Schema stamp (lazy v1, the chat-record convention). */
 	version?: number;
 }
@@ -138,6 +147,8 @@ export interface GoalView {
 	lastError?: string;
 	/** Sessions linked to a topic id the current roadmap no longer has. */
 	orphanSessions: TopicSessionView[];
+	bookIds: string[];
+	followsBookId: string | null;
 }
 
 /** The sidebar's compact goal row. */

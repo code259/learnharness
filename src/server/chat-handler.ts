@@ -44,6 +44,7 @@ import { applyParkedDismissal } from "./dismissal-park.ts";
 import { registerTurn, unregisterTurn } from "./turn-runs.ts";
 import { persistTurn, triggerExtraction } from "./turn-service.ts";
 import { addRoadmapSuggestion, startRoadmapFromChat } from "./goals.ts";
+import { findBook, bookOutline, libraryListText } from "./library.ts";
 import { hasProbeDone, danglingQuestionOf } from "../core/native-messages.ts";
 import { composeInstructions } from "../agent/teacher-agent.ts";
 import { ensureCompacted, kickCompaction, effectiveThresholdTokens } from "./compaction.ts";
@@ -379,6 +380,19 @@ export async function handleChatInput(
 	// offer for suggest by construction.
 	const linkedGoal = record.goalTopic && stores.goalStore.getGoal(record.goalTopic.goalId) ? record.goalTopic : undefined;
 	const suggest = linkedGoal ? { addSuggestion: (text: string) => addRoadmapSuggestion(chatId, text) } : undefined;
+	// LIBRARY TOOLS (fork #15): present only when the library holds a ready
+	// book — an empty library adds nothing to the prompt's tool list.
+	const hasBooks = stores.libraryStore.listBooks().some((b) => b.status === "ready");
+	const library = hasBooks
+		? {
+				listBooks: () => libraryListText(linkedGoal?.goalId ?? null),
+				resolveBook: (ref: string) => {
+					const book = findBook(ref);
+					const outline = book ? bookOutline(book.id) : null;
+					return outline ?? `No ready book matches "${ref}" — call list_books for the ids.`;
+				},
+			}
+		: undefined;
 	const agentOpts: AgentBuildOptions = {
 		engine,
 		callPurpose,
@@ -436,6 +450,7 @@ export async function handleChatInput(
 						// = no research tool in the teacher's registry.
 						searchAvailable,
 						...(suggest ? { goals: { suggest } } : {}),
+						...(library ? { library } : {}),
 					},
 					agentOpts,
 				)
@@ -457,6 +472,7 @@ export async function handleChatInput(
 						goals: suggest
 							? { suggest }
 							: { offer: { startRoadmap: (input) => startRoadmapFromChat(chatId, input) } },
+						...(library ? { library: { listBooks: library.listBooks } } : {}),
 					},
 					agentOpts,
 				);

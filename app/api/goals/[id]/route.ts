@@ -1,4 +1,4 @@
-import { deleteGoal, getGoalView, goalRoute, updateGoal } from "@/src/server";
+import { deleteGoal, ensureCoverageFresh, getGoalView, goalRoute, updateGoal } from "@/src/server";
 
 /** The roadmap page's view: derived topic statuses, sessions, estimate,
  *  conversation, open suggestions, and the agent's liveness. */
@@ -6,6 +6,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 	const { id } = await params;
 	const view = getGoalView(id);
 	if (!view) return Response.json({ error: "Not found" }, { status: 404 });
+	// Looking at a goal looks at its pinned books' coverage lines too.
+	for (const bookId of view.bookIds) ensureCoverageFresh(bookId);
 	return Response.json(view);
 }
 

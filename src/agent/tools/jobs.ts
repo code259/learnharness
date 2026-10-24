@@ -70,7 +70,7 @@ export const pdfInputSchema = Type.Object({
  * The per-call dispatch: create the job (idempotent by toolCallId), fire the
  * runner, and return the ack. Shared by all three tools — only kind differs.
  */
-function dispatch(
+export function dispatch(
 	ctx: JobToolContext,
 	kind: JobRecord["kind"],
 	toolCallId: string,

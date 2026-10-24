@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { MapIcon } from "lucide-react";
-import type { GoalContextDetails } from "@/src/core";
+import { BookOpenIcon, MapIcon } from "lucide-react";
+import type { BookContextDetails, GoalContextDetails } from "@/src/core";
 
 /**
  * The goal-context card (goals, fork #4): message[0] of a session started
@@ -22,6 +22,25 @@ export function GoalContextCard({ data }: { data: GoalContextDetails }) {
 				<span className="font-medium">Roadmap topic</span>
 				<span className="min-w-0 flex-1 truncate">
 					{data.topicTitle} · part of {data.goalTitle}
+				</span>
+			</Link>
+		</div>
+	);
+}
+
+/** The book-context card (library, fork #15): message[0] of a "Learn this
+ *  section" session — the section, its pages, a link to the book page. */
+export function BookContextCard({ data }: { data: BookContextDetails }) {
+	return (
+		<div data-testid="book-context-card" className="my-1">
+			<Link
+				href={`/library/${data.bookId}`}
+				className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border/70 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+			>
+				<BookOpenIcon aria-hidden="true" className="size-3.5 shrink-0" />
+				<span className="font-medium">Book section</span>
+				<span className="min-w-0 flex-1 truncate">
+					{data.sectionTitle} · {data.bookTitle} (pp. {data.startPage}–{data.endPage})
 				</span>
 			</Link>
 		</div>

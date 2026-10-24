@@ -105,6 +105,50 @@ export async function pdfProbe(filePath: string): Promise<void> {
 	await task.destroy();
 }
 
+/** One PDF bookmark (library book maps, fork #15): title, nesting level
+ *  (1 = top), and the 1-indexed page it points at (null = unresolvable). */
+export interface PdfOutlineEntry {
+	title: string;
+	level: number;
+	page: number | null;
+}
+
+/** The document's metadata title + page count + bookmarks (flattened in
+ *  reading order, levels 1..maxLevel). Empty outline = the PDF has none. */
+export async function pdfOutline(filePath: string, maxLevel = 2): Promise<{ title: string | null; pageCount: number; entries: PdfOutlineEntry[] }> {
+	const { doc, task } = await openDocument(filePath);
+	try {
+		const meta = await doc.getMetadata().catch(() => null);
+		const rawTitle = (meta?.info as { Title?: unknown } | undefined)?.Title;
+		const title = typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : null;
+		const outline = (await doc.getOutline().catch(() => null)) ?? [];
+		const entries: PdfOutlineEntry[] = [];
+		type Item = { title?: unknown; dest?: unknown; items?: Item[] };
+		const pageOf = async (dest: unknown): Promise<number | null> => {
+			try {
+				const explicit = typeof dest === "string" ? await doc.getDestination(dest) : dest;
+				if (!Array.isArray(explicit) || explicit.length === 0) return null;
+				const ref = explicit[0];
+				if (typeof ref === "number") return ref + 1;
+				return (await doc.getPageIndex(ref as never)) + 1;
+			} catch {
+				return null;
+			}
+		};
+		const walk = async (items: Item[], level: number): Promise<void> => {
+			for (const item of items) {
+				const t = typeof item.title === "string" ? item.title.replace(/\s+/g, " ").trim() : "";
+				if (t) entries.push({ title: t, level, page: await pageOf(item.dest) });
+				if (level < maxLevel && Array.isArray(item.items)) await walk(item.items, level + 1);
+			}
+		};
+		await walk(outline as Item[], 1);
+		return { title, pageCount: doc.numPages, entries };
+	} finally {
+		await task.destroy();
+	}
+}
+
 /** pdf_info: page count + per-page triage signals. ALWAYS run first. */
 export async function pdfInfo(filePath: string): Promise<PdfInfo> {
 	const pdfjs = await loadPdfjs(); // OPS constant for the operator-list scan
