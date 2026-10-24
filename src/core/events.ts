@@ -48,6 +48,9 @@ export interface ServerEvents {
 	 *  the chat; the client mirrors it by disabling the composer/dock
 	 *  submit. */
 	"compaction-changed": { chatId: string; running: boolean };
+	/** A goal record or its roadmap-agent liveness changed (goals, fork #4):
+	 *  the sidebar folders and an open roadmap page refetch. */
+	"goals-changed": Record<string, never>;
 }
 
 export type ServerEventType = keyof ServerEvents;
@@ -63,6 +66,7 @@ export const SERVER_EVENT_TYPES = [
 	"chats-changed",
 	"record-changed",
 	"compaction-changed",
+	"goals-changed",
 ] as const satisfies readonly ServerEventType[];
 
 /** One notification: the type discriminates the payload. */

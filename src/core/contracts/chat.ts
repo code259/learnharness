@@ -10,6 +10,7 @@ import type { LhMessage } from "../native-messages.ts";
 import type { Phase3 } from "../phases.ts";
 import type { PlanNodeStatus, PlanTree } from "./plan.ts";
 import type { EmissionStats } from "./graph.ts";
+import type { GoalTopicLink } from "./goals.ts";
 
 // ─── Chat records (the session store's on-disk format) ───────────────────────
 
@@ -37,6 +38,10 @@ export interface ChatRecord {
 	kind?: ChatKind;
 	/** The session's plan tree (vision §2) — written by plan tools via saveTree. */
 	tree?: PlanTree;
+	/** The roadmap topic this session belongs to (goals, fork #4): stamped at
+	 *  birth for sessions started from a topic, or by the prober's roadmap
+	 *  offer. Absent = an ungrouped session. Progress derives from it. */
+	goalTopic?: GoalTopicLink;
 	/** Append-only usage log (observability, 2026-09): one entry per model
 	 * turn. DELIBERATELY a parallel log, not per-message metadata — the client
 	 * re-POSTs its message list every turn and its copies never carry
@@ -272,6 +277,9 @@ export interface ChatSummary {
 	 *  summary spread (the picker never needs it from here; the full record
 	 *  is its source). */
 	settings?: ChatSettings;
+	/** The roadmap topic link (goals, fork #4) — rides the summary spread;
+	 *  the sidebar groups sessions into goal folders by it. */
+	goalTopic?: GoalTopicLink;
 }
 
 /** The sidebar's session row: a summary + live liveness. The chats list

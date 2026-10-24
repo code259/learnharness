@@ -43,6 +43,7 @@ import { beginTurn, endTurn } from "./turn-liveness.ts";
 import { applyParkedDismissal } from "./dismissal-park.ts";
 import { registerTurn, unregisterTurn } from "./turn-runs.ts";
 import { persistTurn, triggerExtraction } from "./turn-service.ts";
+import { addRoadmapSuggestion, startRoadmapFromChat } from "./goals.ts";
 import { hasProbeDone, danglingQuestionOf } from "../core/native-messages.ts";
 import { composeInstructions } from "../agent/teacher-agent.ts";
 import { ensureCompacted, kickCompaction, effectiveThresholdTokens } from "./compaction.ts";
@@ -371,6 +372,13 @@ export async function handleChatInput(
 		commitStaged: () => { stores.chatStore.saveMessages(chatId, merged); persistBaseCount = merged.length; },
 		restoreAutomatic: (automaticIds, retainedIds) => restoreUncommittedAutomatic(chatId, constructed, automaticIds, retainedIds),
 	});
+	// GOAL TOOLS (fork #4, docs/goals-roadmaps.md): a session linked to a
+	// live roadmap topic can file roadmap suggestions (prober + teacher); an
+	// unlinked teach session's PROBER can offer a roadmap. Read off the
+	// record each turn — the offer links the chat, so the next turn swaps
+	// offer for suggest by construction.
+	const linkedGoal = record.goalTopic && stores.goalStore.getGoal(record.goalTopic.goalId) ? record.goalTopic : undefined;
+	const suggest = linkedGoal ? { addSuggestion: (text: string) => addRoadmapSuggestion(chatId, text) } : undefined;
 	const agentOpts: AgentBuildOptions = {
 		engine,
 		callPurpose,
@@ -427,6 +435,7 @@ export async function handleChatInput(
 						// The registry drop's signal (2026-09-20): no live engine
 						// = no research tool in the teacher's registry.
 						searchAvailable,
+						...(suggest ? { goals: { suggest } } : {}),
 					},
 					agentOpts,
 				)
@@ -445,6 +454,9 @@ export async function handleChatInput(
 						// knowledge graph through tools when the gate opens —
 						// graph master switch AND the agent.graphTools toggle.
 						...(graphToolsEnabled(effective) ? { graphStore: stores.graphStore } : {}),
+						goals: suggest
+							? { suggest }
+							: { offer: { startRoadmap: (input) => startRoadmapFromChat(chatId, input) } },
 					},
 					agentOpts,
 				);

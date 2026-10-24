@@ -67,6 +67,7 @@ export interface LhMarkerMessage {
 	role: "custom";
 	customType:
 		| "graph-context"
+		| "goal-context"
 		| "probe-handoff"
 		| "subagent-steer"
 		| "subagent-abort"
@@ -233,6 +234,54 @@ export function newGraphContextMessage(picks: readonly GraphContextPick[], chain
 		content: lines.join("\n"),
 		display: true,
 		details: { propositions: picks, chains },
+		timestamp: Date.now(),
+	};
+}
+
+/** The goal-context marker's UI payload (goals, fork #4). */
+export interface GoalContextDetails {
+	goalId: string;
+	goalTitle: string;
+	topicId: string;
+	topicTitle: string;
+}
+
+/** A session started from a roadmap topic (goals, fork #4): message[0], the
+ *  graph-context precedent — a SEPARATE marker before the learner's first
+ *  message, read by the prober as injected context (never learner speech;
+ *  the bracket preamble law). It carries the goal, this topic, and the
+ *  roadmap's derived status lines so the probe knows what is already
+ *  covered — the prober still measures; the topic only fixes the goal. */
+export function newGoalContextMessage(input: {
+	goalId: string;
+	goalTitle: string;
+	goalStatement: string;
+	topicId: string;
+	topicTitle: string;
+	topicSummary?: string;
+	roadmapLines: readonly string[];
+}): LhMarkerMessage {
+	const lines = [
+		"[Session context] — this session was started from a topic on the learner's long-term roadmap:",
+		"",
+		`Long-term goal: ${input.goalStatement}`,
+		`This session's topic: ${input.topicTitle}${input.topicSummary ? ` — ${input.topicSummary}` : ""}`,
+		"",
+		"The roadmap (topic: derived status), prerequisites first:",
+		...input.roadmapLines,
+	];
+	return {
+		id: newMessageId(),
+		role: "custom",
+		customType: "goal-context",
+		content: lines.join("\n"),
+		display: true,
+		details: {
+			goalId: input.goalId,
+			goalTitle: input.goalTitle,
+			topicId: input.topicId,
+			topicTitle: input.topicTitle,
+		} satisfies GoalContextDetails,
 		timestamp: Date.now(),
 	};
 }
@@ -684,7 +733,7 @@ export function nativeInputCause(message: AgentMessage, history: readonly AgentM
 	if (message.role === "custom") {
 		if (["probe-handoff", "subagent-steer", "subagent-abort"].includes(message.customType)) return "automatic";
 		if (["practice-thinking", "practice-next"].includes(message.customType)) return "learner";
-		return ["graph-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
+		return ["graph-context", "goal-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
 	}
 	if (message.role === "toolResult") {
 		if (!(QUESTION_TOOLS as readonly string[]).includes(message.toolName) || message.isError || message.details == null || (message.details as { dismissed?: boolean }).dismissed) return "neutral";

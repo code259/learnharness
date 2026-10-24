@@ -32,6 +32,9 @@ export * from "./events.ts";
 // line existed). Same logic as layout-settle.ts below.
 export * from "./layout.ts";
 export * from "./plan-tree.ts";
+// goals.ts (fork #4, 2026-10-24): the pure goal/roadmap folds — the roadmap
+// page and sidebar render derived views; browser-safe.
+export * from "./goals.ts";
 export * from "./phases.ts";
 export * from "./pending.ts";
 export * from "./prompt-segments.ts";
