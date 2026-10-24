@@ -1,0 +1,22 @@
+# Personal "LearnHarness Dev" build: installs side by side with the official
+# app (own appId, name, userData), never auto-updates, unsigned, flat icon.
+#   npm run desktop:dist:dev  →  dist-dev/mac-arm64/LearnHarness Dev.app
+extends: ./electron-builder.yml
+appId: com.learnharness.LearnHarnessDev
+productName: LearnHarness Dev
+extraMetadata:
+  productName: LearnHarness Dev
+  lhDisableAutoUpdate: true
+directories:
+  output: dist-dev
+# The official hook copies the official icns over ours; the flat icns is used as-is.
+afterPack: null
+mac:
+  icon: build/dev/icon.icns
+  identity: null
+  notarize: false
+  target:
+    - target: dir
+      arch:
+        - arm64
+publish: null
