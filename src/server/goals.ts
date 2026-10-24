@@ -173,6 +173,14 @@ function startRoadmapRun(goalId: string, task: string, background: boolean): voi
 	});
 }
 
+/** A new goal whose first roadmap is drafted right away (foreground — the
+ *  learner asked): the field map's "Make it a goal" (fork #10). */
+export function createGoalWithDraft(title: string, statement: string): { goalId: string } {
+	const goal = stores.goalStore.createGoal({ title, statement });
+	startRoadmapRun(goal.id, "Draft the full roadmap for this goal now.", false);
+	return { goalId: goal.id };
+}
+
 // ─── books (library, fork #15) ───────────────────────────────────────────────
 
 /** "Compare with my roadmap": the roadmap agent in COMPARE mode — it can

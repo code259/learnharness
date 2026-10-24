@@ -375,6 +375,15 @@ function projectMarker(marker: LhMarkerMessage, out: LhViewMessage[]): void {
 			});
 			return;
 		}
+		case "agenda-context": {
+			// A "Learn this agenda" session's context (field map, fork #10).
+			out.push({
+				id: marker.id,
+				role: "user",
+				parts: [{ type: "data-agenda-context", id: `agc_${marker.id}`, data: marker.details }],
+			});
+			return;
+		}
 		case "probe-handoff": {
 			out.push({
 				id: marker.id,

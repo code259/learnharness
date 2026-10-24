@@ -260,6 +260,11 @@ describe("server/library — add, map, act", () => {
 
 		const compareSeen: string[] = [];
 		serviceEngineOverride.current = fauxEngine([
+			// The model TRIES to rewrite the roadmap in compare mode — the tool
+			// isn't in its registry, so the call fails and nothing changes.
+			recordingStep(compareSeen, () =>
+				fauxAssistantMessage([fauxToolCall("roadmap_write", { mermaid: "graph TD\n  book-ch1[Book chapter 1] --> book-ch2[Book chapter 2]" })]),
+			),
 			recordingStep(compareSeen, () =>
 				fauxAssistantMessage([fauxToolCall("file_suggestion", { book: bookId, suggestion: "Add a topic on the Detail section (p. 3)." })]),
 			),
@@ -270,8 +275,11 @@ describe("server/library — add, map, act", () => {
 		const after = goalStore.getGoal(goal.id)!;
 		assert.equal(after.suggestions.length, 1);
 		assert.equal(after.suggestions[0]!.bookId, bookId);
-		assert.deepEqual(after.roadmap!.nodes.map((n) => n.id), ["rm"], "compare never rewrites the roadmap");
-		assert.equal(compareSeen[0]!.includes("roadmap_write"), false, "compare mode has no roadmap_write tool");
+		assert.deepEqual(after.roadmap!.nodes.map((n) => n.id), ["rm"], "the attempted rewrite changed nothing");
+		const rewriteResult = (JSON.parse(compareSeen[1]!) as { role: string; toolName?: string; isError?: boolean }[]).find(
+			(m) => m.role === "toolResult" && m.toolName === "roadmap_write",
+		);
+		assert.equal(rewriteResult?.isError, true, "compare mode has no roadmap_write tool — the call comes back as an error");
 		assert.match(compareSeen[0]!, /Key idea of/, "compare is where the book's ideas belong");
 	});
 

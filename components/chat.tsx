@@ -56,10 +56,10 @@ import { SessionMessageNavigation } from "@/components/session-navigation";
 import { PracticeDock } from "@/components/practice-dock";
 import { ThinkingCard, type PracticeThinkingData } from "@/components/practice-cards";
 import { GraphContextCard, type GraphContextData } from "@/components/graph-context-card";
-import { BookContextCard, GoalContextCard } from "@/components/goal-context-card";
+import { AgendaContextCard, BookContextCard, GoalContextCard } from "@/components/goal-context-card";
 import { TopBar } from "@/components/top-bar";
 import type { ArtifactPartProps, JobRecord, Phase3, QuestionAnswerData, TurnUsage, SessionPricing } from "@/src/core";
-import type { BookContextDetails, GoalContextDetails, LhViewMessage } from "@/src/core";
+import type { AgendaContextDetails, BookContextDetails, GoalContextDetails, LhViewMessage } from "@/src/core";
 import { PhaseChip, PhaseDivider } from "@/components/phase-divider";
 import {
 	CompactionCutDivider,
@@ -1362,6 +1362,8 @@ export function Chat({
 												return <GoalContextCard key={pi} data={part.data as GoalContextDetails} />;
 											case "data-book-context":
 												return <BookContextCard key={pi} data={part.data as BookContextDetails} />;
+											case "data-agenda-context":
+												return <AgendaContextCard key={pi} data={part.data as AgendaContextDetails} />;
 											case "data-compaction":
 												return <CompactionMomentDivider key={pi} data={part.data as CompactionDividerData} />;
 											case "data-compaction-cut":
