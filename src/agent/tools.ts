@@ -19,6 +19,7 @@ import { jobTools, type DemoInput, type PdfInput, type ResearchInput, type Visua
 import { planTools, type PlanToolContext } from "./tools/plan.ts";
 import { probeDoneTool, type ProbeDoneContext } from "./tools/probe.ts";
 import { proberGraphTools } from "./tools/graph.ts";
+import { offerRoadmapTool, suggestRoadmapTool, type OfferRoadmapContext, type SuggestRoadmapContext } from "./tools/goals.ts";
 import { readTool } from "./tools/read.ts";
 import { lsTool } from "./tools/ls.ts";
 import { findTool } from "./tools/find.ts";
@@ -276,6 +277,10 @@ export interface ProberToolContext extends ProbeDoneContext {
 	 *  master switch AND the agent.graphTools toggle (settings-resolution).
 	 *  Absent = the gate is closed, no map tools (tests drive this seam). */
 	graphStore?: GraphStore;
+	/** Goal tools (fork #4): `offer` for an UNLINKED session (the roadmap
+	 *  offer), `suggest` for a session linked to a roadmap topic. The
+	 *  composition root decides from the record's goalTopic. */
+	goals?: { offer?: OfferRoadmapContext; suggest?: SuggestRoadmapContext };
 }
 
 /** The prober's tool set: probe quiz (no nodeId) + ask + the learner-fs
@@ -339,6 +344,8 @@ export function createProberTools(
 				...(ctx.graphStore
 					? proberGraphTools({ chatStore: ctx.chatStore, graphStore: ctx.graphStore })
 					: {}),
+				...(ctx.goals?.offer ? offerRoadmapTool(ctx.goals.offer) : {}),
+				...(ctx.goals?.suggest ? suggestRoadmapTool(ctx.goals.suggest) : {}),
 				...done,
 			},
 				withoutMechanics(enabled),
@@ -400,6 +407,9 @@ export interface TeacherToolContext extends PlanToolContext {
 	spawn: (job: JobRecord, input: ResearchInput | DemoInput | VisualInput | PdfInput) => void;
 	/** Retained search-status seam; research dispatch is available keylessly. */
 	searchAvailable?: () => boolean;
+	/** Goal tools (fork #4): present only when the session is linked to a
+	 *  roadmap topic — the teacher can file roadmap suggestions. */
+	goals?: { suggest?: SuggestRoadmapContext };
 }
 
 /**
@@ -459,6 +469,7 @@ export function createTeacherTools(
 			grep: grepTool,
 			...planTools(ctx),
 			...jobTools({ chatId: ctx.chatId, jobStore: ctx.jobStore, spawn: ctx.spawn, searchAvailable: ctx.searchAvailable }),
+			...(ctx.goals?.suggest ? suggestRoadmapTool(ctx.goals.suggest) : {}),
 		},
 		withoutMechanics(enabled),
 		),

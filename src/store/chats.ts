@@ -12,7 +12,7 @@ import * as path from "node:path";
 import { PATHS } from "../../config.ts";
 import { emit } from "../core/events.ts";
 import type { ChatStore } from "../core/ports.ts";
-import type { ChatRecord, ChatSettings, ChatSummary, ExtractionRunUsage, PlanTree, TurnUsage } from "../core/contracts.ts";
+import type { ChatRecord, ChatSettings, ChatSummary, ExtractionRunUsage, GoalTopicLink, PlanTree, TurnUsage } from "../core/contracts.ts";
 import { CURRENT_CHAT_VERSION } from "../core/contracts.ts";
 import type { LhMessage } from "../core/native-messages.ts";
 import { activeProblemOf, danglingQuestionOf } from "../core/native-messages.ts";
@@ -195,6 +195,18 @@ function deleteChat(id: string): boolean {
 	}
 }
 
+/** Link (or unlink) the session to a roadmap topic (goals, fork #4). Like
+ *  saveTree: not conversation activity, updatedAt stays put. Announces
+ *  chats-changed — the link moves the row between sidebar folders. */
+function setGoalTopic(id: string, link: GoalTopicLink | null): void {
+	const record = getChat(id);
+	if (!record) throw new Error(`Chat not found: ${id}`);
+	if (link) record.goalTopic = { goalId: link.goalId, topicId: link.topicId };
+	else delete record.goalTopic;
+	writeChat(record);
+	emit("chats-changed", {});
+}
+
 /** Persist the session plan tree (plan tools call this in execute). */
 function saveTree(id: string, tree: PlanTree): void {
 	const record = getChat(id);
@@ -216,4 +228,5 @@ export const chatStore: ChatStore = {
 	deleteChat,
 	appendTurnUsage,
 	appendExtractionUsage,
+	setGoalTopic,
 };

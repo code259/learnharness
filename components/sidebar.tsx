@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
+import { DeleteGoalDialog } from "@/components/delete-goal-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { DumbbellIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { ChevronRightIcon, DumbbellIcon, MapIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
 import { LhMark } from "@/components/lh-mark";
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { fuzzyScore } from "@/src/core";
 import { useServerEvent, useServerResync } from "@/components/server-events";
-import type { ChatListItem } from "@/src/core";
+import type { ChatListItem, GoalSummary } from "@/src/core";
 import { kbdEventForAction } from "@/src/core";
 import { notifySettingsSaved } from "@/components/settings-signal";
 
@@ -371,6 +372,84 @@ export function RenameRow({ chat, onCommit, onCancel }: { chat: ChatListItem; on
 	);
 }
 
+/**
+ * GOAL FOLDERS (goals, fork #4): sessions linked to a roadmap topic group
+ * under their goal automatically — no manual filing. Pure grouping, exported
+ * for tests: goal order is the server's (active → paused → archived, newest
+ * activity first); a session whose goal is unknown (deleted mid-flight)
+ * falls back to the ungrouped list.
+ */
+export function groupSessions(
+	chats: readonly ChatListItem[],
+	goals: readonly GoalSummary[],
+): { folders: { goal: GoalSummary; chats: ChatListItem[] }[]; ungrouped: ChatListItem[] } {
+	const known = new Set(goals.map((g) => g.id));
+	const folders = goals.map((goal) => ({ goal, chats: chats.filter((c) => c.goalTopic?.goalId === goal.id) }));
+	const ungrouped = chats.filter((c) => !c.goalTopic || !known.has(c.goalTopic.goalId));
+	return { folders, ungrouped };
+}
+
+const FOLDERS_KEY = "lh:goal-folders-open";
+
+/** Default expansion: active goals open, paused/archived folded. An
+ *  explicit toggle (persisted) always wins. */
+function folderOpen(goal: GoalSummary, overrides: Record<string, boolean>): boolean {
+	return overrides[goal.id] ?? goal.status === "active";
+}
+
+/** A goal folder's header row: chevron (fold) + the goal's name (opens its
+ *  roadmap page) + covered/total, or the spinner while its roadmap agent
+ *  works. */
+export function GoalFolderRow({
+	goal,
+	open,
+	active,
+	onToggle,
+	onContextMenu,
+}: {
+	goal: GoalSummary;
+	open: boolean;
+	active: boolean;
+	onToggle: () => void;
+	/** Right-click opens the folder menu (Open roadmap / Delete…). */
+	onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
+}) {
+	return (
+		<div
+			onContextMenu={onContextMenu}
+			data-testid="goal-folder"
+			className={cn(
+				"mb-0.5 flex w-full items-center gap-1 rounded-lg pr-3 transition-colors hover:bg-accent",
+				active && "bg-accent",
+				goal.status !== "active" && "opacity-60",
+			)}
+		>
+			<button
+				type="button"
+				onClick={onToggle}
+				aria-label={open ? `Fold ${goal.title}` : `Unfold ${goal.title}`}
+				aria-expanded={open}
+				className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+			>
+				<ChevronRightIcon className={cn("size-3.5 transition-transform", open && "rotate-90")} />
+			</button>
+			<Link href={`/goals/${goal.id}`} className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5">
+				<MapIcon className="size-3.5 shrink-0 text-muted-foreground/80" aria-hidden="true" />
+				<span className="min-w-0 flex-1 truncate font-prose text-(length:--lh-prose-size)">{goal.title}</span>
+				{goal.working ? (
+					<BrailleSpinner />
+				) : (
+					goal.totalCount > 0 && (
+						<span className="shrink-0 text-xs text-muted-foreground">
+							{goal.coveredCount}/{goal.totalCount}
+						</span>
+					)
+				)}
+			</Link>
+		</div>
+	);
+}
+
 /** The three-way kind filter (practice sessions, owner 2026-10-04):
  *  Teaching / All / Practice — a client-side filter over the same
  *  snapshot, persisted in localStorage, defaulting to All. */
@@ -380,6 +459,23 @@ const KIND_FILTER_KEY = "lh:session-kind-filter";
 function SessionsSidebar() {
 	const { open, toggle } = useSidebar();
 	const [chats, setChats] = useState<ChatListItem[] | null>(null);
+	const [goals, setGoals] = useState<GoalSummary[]>([]);
+	const [folderOverrides, setFolderOverrides] = useState<Record<string, boolean>>({});
+	useEffect(() => {
+		try {
+			const stored = JSON.parse(window.localStorage.getItem(FOLDERS_KEY) ?? "{}") as unknown;
+			if (stored && typeof stored === "object") setFolderOverrides(stored as Record<string, boolean>);
+		} catch {
+			// a corrupt entry just means defaults
+		}
+	}, []);
+	const toggleFolder = useCallback((goal: GoalSummary) => {
+		setFolderOverrides((prev) => {
+			const next = { ...prev, [goal.id]: !folderOpen(goal, prev) };
+			window.localStorage.setItem(FOLDERS_KEY, JSON.stringify(next));
+			return next;
+		});
+	}, []);
 	const [query, setQuery] = useState("");
 	const [kindFilter, setKindFilter] = useState<SessionKindFilter>("all");
 	useEffect(() => {
@@ -420,6 +516,22 @@ function SessionsSidebar() {
 			.map((r) => r.c);
 	}, [chats, query, kindFilter]);
 
+	/* Grouped view (no query): goal folders first, then the ungrouped
+	   sessions; a search flattens everything back into one ranked list.
+	   The keyboard walk follows exactly the rows on screen. */
+	const grouped = useMemo(
+		() => (shown && !query.trim() && kindFilter !== "practice" ? groupSessions(shown, goals) : null),
+		[shown, query, kindFilter, goals],
+	);
+	const walk = useMemo(() => {
+		if (!shown) return shown;
+		if (!grouped) return shown;
+		return [
+			...grouped.folders.flatMap((f) => (folderOpen(f.goal, folderOverrides) ? f.chats : [])),
+			...grouped.ungrouped,
+		];
+	}, [shown, grouped, folderOverrides]);
+
 	const refreshInFlightRef = useRef(false);
 	const refresh = useCallback(async () => {
 		// In-flight coalesce (S6): event bursts may land several refresh
@@ -428,9 +540,13 @@ function SessionsSidebar() {
 		if (refreshInFlightRef.current) return;
 		refreshInFlightRef.current = true;
 		try {
-			const res = await fetch("/api/chats", { cache: "no-store" });
+			const [res, goalsRes] = await Promise.all([
+				fetch("/api/chats", { cache: "no-store" }),
+				fetch("/api/goals", { cache: "no-store" }).catch(() => null),
+			]);
 			const d = (await res.json()) as { chats: ChatListItem[] };
 			setChats(d.chats);
+			if (goalsRes?.ok) setGoals(((await goalsRes.json()) as { goals: GoalSummary[] }).goals);
 		} catch {
 			// a transient failure keeps the last snapshot
 			setChats((prev) => prev ?? []);
@@ -504,6 +620,7 @@ function SessionsSidebar() {
 	useServerEvent("turn-started", scheduleEventRefresh);
 	useServerEvent("turn-settled", scheduleEventRefresh);
 	useServerEvent("compaction-changed", scheduleEventRefresh);
+	useServerEvent("goals-changed", scheduleEventRefresh);
 	useServerResync(() => void refreshRef.current());
 	useEffect(
 		() => () => {
@@ -538,6 +655,32 @@ function SessionsSidebar() {
 	const ctxAnchorRef = useRef<HTMLElement | null>(null);
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState<ChatListItem | null>(null);
+	/* Goal folders get the same right-click menu language (goals, fork #4):
+	   Open roadmap · Delete… → the confirm dialog. */
+	const [ctxGoal, setCtxGoal] = useState<GoalSummary | null>(null);
+	const goalAnchorRef = useRef<HTMLElement | null>(null);
+	const [deletingGoal, setDeletingGoal] = useState<GoalSummary | null>(null);
+	useEffect(() => {
+		if (ctxGoal === null) return;
+		const onPointerDown = (e: PointerEvent) => {
+			const target = e.target as Node;
+			if (target instanceof Element && target.closest("[data-lh-menu]")) return;
+			if (goalAnchorRef.current?.contains(target)) return;
+			setCtxGoal(null);
+		};
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.stopPropagation();
+				setCtxGoal(null);
+			}
+		};
+		document.addEventListener("pointerdown", onPointerDown);
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown);
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [ctxGoal]);
 
 	const openContext = (e: React.MouseEvent<HTMLButtonElement>, chat: ChatListItem) => {
 		e.preventDefault(); // suppress the native menu
@@ -623,7 +766,7 @@ function SessionsSidebar() {
 	// buttons, so the index matches).
 	useEffect(() => {
 		if (kbdIndex === null) return;
-		listRef.current?.querySelectorAll("button")[kbdIndex]?.scrollIntoView({ block: "nearest" });
+		listRef.current?.querySelector(`[data-walk-index="${kbdIndex}"]`)?.scrollIntoView({ block: "nearest" });
 	}, [kbdIndex]);
 
 	useEffect(() => {
@@ -739,7 +882,7 @@ function SessionsSidebar() {
 								}
 								// Modified keys belong to the surface (⇧↵ etc.).
 								if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-								const n = shown?.length ?? 0;
+								const n = walk?.length ?? 0;
 								if (n === 0) return;
 								if (e.key === "ArrowDown" || e.key === "ArrowUp") {
 									// The rows move, not the caret.
@@ -751,7 +894,7 @@ function SessionsSidebar() {
 									return;
 								}
 								if (e.key === "Enter") {
-									const target = shown![kbdIndex !== null && kbdIndex < n ? kbdIndex : 0];
+									const target = walk![kbdIndex !== null && kbdIndex < n ? kbdIndex : 0];
 									if (!target) return;
 									e.preventDefault();
 									router.push(`/chat/${target.id}`);
@@ -802,28 +945,59 @@ function SessionsSidebar() {
 							{query.trim() ? "No sessions match." : "No sessions yet."}
 						</div>
 					) : (
-						shown.map((c, i) =>
-							renamingId === c.id ? (
-								<RenameRow
-									key={c.id}
-									chat={c}
-									onCommit={(next) => void commitRename(c.id, next)}
-									onCancel={() => setRenamingId(null)}
-								/>
-							) : (
-								<SessionRow
-									key={c.id}
-									chat={c}
-									active={pathname === `/chat/${c.id}`}
-									kbdSelected={i === kbdIndex}
-									onOpen={() => {
-										setKbdIndex(null);
-										router.push(`/chat/${c.id}`);
-									}}
-									onContextMenu={(e) => openContext(e, c)}
-								/>
-							),
-						)
+						(() => {
+							const indexOf = new Map((walk ?? []).map((c, i) => [c.id, i] as const));
+							const row = (c: ChatListItem) =>
+								renamingId === c.id ? (
+									<RenameRow
+										key={c.id}
+										chat={c}
+										onCommit={(next) => void commitRename(c.id, next)}
+										onCancel={() => setRenamingId(null)}
+									/>
+								) : (
+									<div key={c.id} data-walk-index={indexOf.get(c.id)}>
+										<SessionRow
+											chat={c}
+											active={pathname === `/chat/${c.id}`}
+											kbdSelected={indexOf.get(c.id) === kbdIndex}
+											onOpen={() => {
+												setKbdIndex(null);
+												router.push(`/chat/${c.id}`);
+											}}
+											onContextMenu={(e) => openContext(e, c)}
+										/>
+									</div>
+								);
+							if (!grouped) return shown.map(row);
+							return (
+								<>
+									{grouped.folders.map(({ goal, chats: inFolder }) => {
+										const open = folderOpen(goal, folderOverrides);
+										return (
+											<div key={goal.id}>
+												<GoalFolderRow
+													goal={goal}
+													open={open}
+													active={pathname === `/goals/${goal.id}`}
+													onToggle={() => toggleFolder(goal)}
+													onContextMenu={(e) => {
+														e.preventDefault();
+														goalAnchorRef.current = e.currentTarget;
+														setCtxGoal(goal);
+													}}
+												/>
+												{open && <div className="ml-3 border-l border-border/60 pl-1">{inFolder.map(row)}</div>}
+											</div>
+										);
+									})}
+									{grouped.folders.length > 0 && grouped.ungrouped.length > 0 && (
+										<div className="mx-3 mt-2 mb-1 text-[11px] uppercase tracking-widest text-muted-foreground/60">Other sessions</div>
+									)}
+									{grouped.ungrouped.map(row)}
+								</>
+							);
+						})()
 					)}
 				</div>
 
@@ -918,6 +1092,56 @@ function SessionsSidebar() {
 						<CoverageMenuBlock chatId={ctxChatId} />
 					</MenuShell>
 				)}
+
+				{ctxGoal !== null && (
+					<MenuShell
+						anchorRef={goalAnchorRef}
+						testid="goal-context-menu"
+						preferredSide="down"
+						menuClass="flex w-52 flex-col gap-0.5 rounded-xl border bg-card p-2 text-xs shadow-xl"
+					>
+						<button
+							type="button"
+							onClick={() => {
+								const id = ctxGoal.id;
+								setCtxGoal(null);
+								router.push(`/goals/${id}`);
+							}}
+							className="flex items-center rounded-lg px-2.5 py-1.5 text-left text-foreground transition-colors hover:bg-accent"
+						>
+							Open roadmap
+						</button>
+						<button
+							type="button"
+							data-testid="ctx-delete-goal"
+							onClick={() => {
+								setDeletingGoal(ctxGoal);
+								setCtxGoal(null);
+							}}
+							className="flex items-center rounded-lg px-2.5 py-1.5 text-left text-muted-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+						>
+							Delete roadmap…
+						</button>
+					</MenuShell>
+				)}
+				<DeleteGoalDialog
+					goal={
+						deletingGoal
+							? {
+									id: deletingGoal.id,
+									title: deletingGoal.title,
+									sessionCount: (chats ?? []).filter((c) => c.goalTopic?.goalId === deletingGoal.id).length,
+								}
+							: null
+					}
+					onClose={() => setDeletingGoal(null)}
+					onDeleted={(id) => {
+						setDeletingGoal(null);
+						setGoals((prev) => prev.filter((g) => g.id !== id));
+						if (pathname === `/goals/${id}`) router.push("/");
+						void refresh();
+					}}
+				/>
 
 				{/* The two-option delete dialog (wave 6) — portaled to body
 				    by the component itself, lives here for state locality. */}

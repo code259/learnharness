@@ -25,6 +25,12 @@ import type {
 	SessionCheckpoint,
 	TurnUsage,
 	NotesSource,
+	GoalRecord,
+	GoalStatus,
+	GoalTopicLink,
+	GoalMessage,
+	RoadmapSuggestion,
+	SuggestionStatus,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -63,6 +69,28 @@ export interface ChatStore {
 	 *  job cleanup are the caller's choreography (core/graph-deletion.ts +
 	 *  the DELETE route), not the store's. */
 	deleteChat(id: string): boolean;
+	/** Link (or unlink, null) the session to a roadmap topic (goals, fork
+	 *  #4). Not conversation activity — updatedAt stays put. */
+	setGoalTopic(id: string, link: GoalTopicLink | null): void;
+}
+
+// ─── GoalStore — goals + roadmaps (data/goals, fork #4) ─────────────────────
+// One JSON file per goal; the goals service (src/server/goals.ts) is the
+// sole writer. Every mutation bumps updatedAt and announces goals-changed.
+
+export interface GoalStore {
+	createGoal(input: { title: string; statement: string }): GoalRecord;
+	/** The record, or null (unknown id / corrupt / newer-schema file). */
+	getGoal(id: string): GoalRecord | null;
+	/** Every readable goal, newest activity first. */
+	listGoals(): GoalRecord[];
+	/** Replace the roadmap (already validated by createTree). */
+	saveRoadmap(id: string, roadmap: PlanTree): GoalRecord;
+	appendMessage(id: string, message: Omit<GoalMessage, "id" | "createdAt">): GoalRecord;
+	update(id: string, patch: { title?: string; statement?: string; status?: GoalStatus; lastError?: string | null }): GoalRecord;
+	addSuggestion(id: string, input: { chatId: string; text: string }): RoadmapSuggestion;
+	setSuggestionStatus(id: string, suggestionId: string, status: SuggestionStatus): GoalRecord;
+	deleteGoal(id: string): boolean;
 }
 
 // ─── GraphStore — the append-only evidence ledgers (data/graph) ──────────────

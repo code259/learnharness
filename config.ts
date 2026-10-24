@@ -26,6 +26,8 @@ export const PATHS = {
 	/** Chat sessions (AI SDK UIMessage transcripts, one JSON file per chat). */
 	chats: path.join(DATA_ROOT, "chats"),
 	graph: path.join(DATA_ROOT, "graph"),
+	/** Goals + roadmaps (fork #4): one JSON file per goal. */
+	goals: path.join(DATA_ROOT, "goals"),
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),
@@ -52,7 +54,10 @@ export type ModelRole =
 	| "visualMaker"
 	| "pdfReader"
 	| "extractor"
-	| "auditor";
+	| "auditor"
+	/** The roadmap agent (goals, fork #4): drafts and revises roadmaps —
+	 *  conversation-grade planning, so it rides the STRONG slot. */
+	| "roadmapper";
 
 /**
  * The LIVE graph store (src/store/graph.ts) — owned by the app's extraction

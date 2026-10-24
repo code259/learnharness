@@ -5,6 +5,7 @@ import { JobCard, PdfJobCard } from "@/components/artifacts/job-card";
 import { VisualCard } from "@/components/artifacts/visual-card";
 import { ProbeDoneCard } from "@/components/artifacts/probe-done-card";
 import { ToolCallCard } from "@/components/artifacts/tool-call-card";
+import { RoadmapOfferCard } from "@/components/artifacts/roadmap-offer-card";
 import { ProblemCard, ConcludeCard } from "@/components/practice-cards";
 
 /**
@@ -50,4 +51,8 @@ export const artifactRenderers: Record<string, ComponentType<ArtifactPartProps>>
 	// discipline (their results are pre-formatted strings too).
 	list_sessions: ToolCallCard,
 	list_propositions: ToolCallCard,
+	// Goals (fork #4): the accepted roadmap offer links to the goal's page;
+	// a filed roadmap suggestion is a quiet trace like the fs tools.
+	offer_roadmap: RoadmapOfferCard,
+	suggest_roadmap_change: ToolCallCard,
 };

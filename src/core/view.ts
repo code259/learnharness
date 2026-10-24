@@ -355,6 +355,16 @@ function projectMarker(marker: LhMarkerMessage, out: LhViewMessage[]): void {
 			});
 			return;
 		}
+		case "goal-context": {
+			// A topic session's roadmap context (goals, fork #4): the same
+			// user-side card treatment as the graph-context pick.
+			out.push({
+				id: marker.id,
+				role: "user",
+				parts: [{ type: "data-goal-context", id: `goc_${marker.id}`, data: marker.details }],
+			});
+			return;
+		}
 		case "probe-handoff": {
 			out.push({
 				id: marker.id,
