@@ -60,6 +60,8 @@ export interface ServerEvents {
 	/** The AI safety field map changed (build progress, coverage, proposals —
 	 *  fork #10): the field-map page refetches. */
 	"fieldmap-changed": Record<string, never>;
+	/** Papers or the feed changed (forks #8/#9). */
+	"papers-changed": Record<string, never>;
 }
 
 export type ServerEventType = keyof ServerEvents;
@@ -79,6 +81,7 @@ export const SERVER_EVENT_TYPES = [
 	"inbox-changed",
 	"library-changed",
 	"fieldmap-changed",
+	"papers-changed",
 ] as const satisfies readonly ServerEventType[];
 
 /** One notification: the type discriminates the payload. */

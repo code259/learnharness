@@ -31,6 +31,7 @@ Hold the architecture along two orthogonal axes:
 | **Practice** — problem sets | `data/practice/*.json` | partitioner→generator→grader pipeline, self-contained sets (§7) |
 | **Desk** — Today + inbox | `data/inbox.json` | the Today service (`src/server/today.ts`); the Today plan is derived per fetch, never stored ([today-inbox.md](today-inbox.md)) |
 | **Shelf** — the library | `data/library/<id>/` | the library service (`src/server/library.ts`) + librarian agent; books are references, never the curriculum ([library.md](library.md)) |
+| **Reading room** — papers + the feed | `data/library/papers/`, `data/library/feed.json` | the papers service (`src/server/papers.ts`); paper sessions, prediction calibration, the daily ranked feed ([papers-feed.md](papers-feed.md)) |
 | **Compass** — the AI safety field map | `data/fieldmap/map.json` | the field-map service (`src/server/fieldmap.ts`) + cartographer agent; a mirror of the field with your coverage ([field-map.md](field-map.md)) |
 | **Atlas** — goals + roadmaps | `data/goals/*.json` | the goals service (`src/server/goals.ts`) + roadmap agent; topic progress derived from linked sessions ([goals-roadmaps.md](goals-roadmaps.md)) |
 | **Stage** — presentation shell | nothing server-side | components/, graph canvas, docks — pure consumer via `/api/*` |

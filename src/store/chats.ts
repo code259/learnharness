@@ -207,6 +207,15 @@ function setGoalTopic(id: string, link: GoalTopicLink | null): void {
 	emit("chats-changed", {});
 }
 
+/** Mark the session as reading a paper (fork #8). Not conversation
+ *  activity — updatedAt stays put. */
+function setPaperId(id: string, paperId: string): void {
+	const record = getChat(id);
+	if (!record) throw new Error(`Chat not found: ${id}`);
+	record.paperId = paperId;
+	writeChat(record);
+}
+
 /** Persist the session plan tree (plan tools call this in execute). */
 function saveTree(id: string, tree: PlanTree): void {
 	const record = getChat(id);
@@ -229,4 +238,5 @@ export const chatStore: ChatStore = {
 	appendTurnUsage,
 	appendExtractionUsage,
 	setGoalTopic,
+	setPaperId,
 };

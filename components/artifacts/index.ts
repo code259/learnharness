@@ -59,4 +59,7 @@ export const artifactRenderers: Record<string, ComponentType<ArtifactPartProps>>
 	// same dispatch card; list_books is a quiet trace.
 	consult_book: PdfJobCard,
 	list_books: ToolCallCard,
+	// Paper sessions (fork #8): quiet traces of the calibration record.
+	record_prediction: ToolCallCard,
+	resolve_prediction: ToolCallCard,
 };

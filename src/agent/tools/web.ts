@@ -192,3 +192,7 @@ export function createWebTools(search: () => SearchProvider | null): Record<stri
  *  always injects the real seam — an absent seam reads as unavailable,
  *  never a crash and never a silent alternative engine). */
 export const webTools = createWebTools(() => null);
+
+/** Readable markdown of a web page (Readability, Jina fallback) — the
+ *  Papers shelf saves lab blog posts with it (fork #8). */
+export { fetchAndExtract as fetchReadable };

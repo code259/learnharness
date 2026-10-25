@@ -11,6 +11,7 @@ export * from "./goals.ts";
 export * from "./today.ts";
 export * from "./library.ts";
 export * from "./fieldmap.ts";
+export * from "./papers.ts";
 export * from "./graph.ts";
 export { NotesImportError } from "../agent/subagents/extraction.ts";
 export * from "./commit-positions.ts";

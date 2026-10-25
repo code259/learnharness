@@ -171,3 +171,48 @@ export async function judgeIdeas(items: readonly IdeaToJudge[], run: LibrarianRu
 		neverSubmitted: "The librarian did not submit coverage judgements.",
 	});
 }
+
+// ─── the feed's daily pick (fork #9) ─────────────────────────────────────────
+
+const FEED_PROMPT = `You pick a learner's daily reading for a learning application focused on technical AI safety.
+
+You get the learner's profile (their goals and the research areas they care about) and up to 30 new candidates (papers and lab research posts). Pick the AT MOST 5 most worth this learner's time: substantive work relevant to their goals, at or just beyond what they know — not product announcements, not tangential capability news. For each pick write:
+- summary: one plain line on what it is
+- why: one line on why it's relevant to THIS learner (name the goal or area it serves)
+
+Submit with submit_picks using the given keys, best first. Fewer than 5 is fine if little qualifies.`;
+
+const picksSchema = Type.Object({
+	picks: Type.Array(
+		Type.Object({ key: Type.String({ minLength: 1 }), summary: Type.String({ minLength: 1 }), why: Type.String({ minLength: 1 }) }),
+		{ maxItems: 5 },
+	),
+});
+
+export interface FeedCandidate {
+	key: string;
+	title: string;
+	source: string;
+	summary: string;
+}
+
+export async function pickFeedItems(
+	profile: string,
+	candidates: readonly FeedCandidate[],
+	run: LibrarianRun,
+): Promise<{ key: string; summary: string; why: string }[]> {
+	const want = new Set(candidates.map((c) => c.key));
+	return runSubmitAgent<{ key: string; summary: string; why: string }[]>({
+		role: "librarian",
+		toolName: "submit_picks",
+		toolDescription: "Submit up to 5 picks (by key), best first.",
+		parameters: picksSchema,
+		fill: (input: { picks: { key: string; summary: string; why: string }[] }) => input.picks.filter((p) => want.has(p.key)).slice(0, 5),
+		systemPrompt: FEED_PROMPT,
+		prompt: `Learner profile:\n${profile}\n\nCandidates:\n${candidates.map((c) => `[${c.key}] (${c.source}) ${c.title}\n${c.summary.slice(0, 500)}`).join("\n\n")}`,
+		engine: run.engine,
+		signal: run.signal,
+		onStep: step(run),
+		neverSubmitted: "The librarian did not pick the feed.",
+	});
+}

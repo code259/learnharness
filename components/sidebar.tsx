@@ -23,6 +23,7 @@ import { useServerEvent, useServerResync } from "@/components/server-events";
 import type { ChatListItem, GoalSummary } from "@/src/core";
 import { kbdEventForAction } from "@/src/core";
 import { notifySettingsSaved } from "@/components/settings-signal";
+import { DailyFeedScan } from "@/components/papers-feed";
 
 /**
  * Toggleable sidebar — NOT a modal drawer: no backdrop, no focus theft. It
@@ -1199,6 +1200,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 			    after the content in the tree, but it's window-level so order only
 			    matters for the events it dispatches, never for DOM priority. */}
 			<KeyboardShortcuts />
+			{/* The feed's once-a-day scan (fork #9): one request per window open;
+			    the server's day gate makes repeats free. */}
+			<DailyFeedScan />
 		</SettingsDialogProvider>
 	);
 }

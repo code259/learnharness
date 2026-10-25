@@ -42,6 +42,9 @@ export interface ChatRecord {
 	 *  birth for sessions started from a topic, or by the prober's roadmap
 	 *  offer. Absent = an ungrouped session. Progress derives from it. */
 	goalTopic?: GoalTopicLink;
+	/** The paper this session reads (fork #8): stamped at birth by "Read
+	 *  it"; prediction tools key on it. */
+	paperId?: string;
 	/** Append-only usage log (observability, 2026-09): one entry per model
 	 * turn. DELIBERATELY a parallel log, not per-message metadata — the client
 	 * re-POSTs its message list every turn and its copies never carry

@@ -70,6 +70,7 @@ export interface LhMarkerMessage {
 		| "goal-context"
 		| "book-context"
 		| "agenda-context"
+		| "paper-context"
 		| "probe-handoff"
 		| "subagent-steer"
 		| "subagent-abort"
@@ -373,6 +374,54 @@ export function newAgendaContextMessage(input: {
 		content: lines.join("\n"),
 		display: true,
 		details: { agendaId: input.agendaId, agendaTitle: input.agendaTitle, areaTitle: input.areaTitle } satisfies AgendaContextDetails,
+		timestamp: Date.now(),
+	};
+}
+
+/** The arc a paper session follows at each depth (fork #8). */
+export const PAPER_ARCS: Record<"skim" | "standard" | "deep", string> = {
+	skim: "SKIM (about 15 minutes): the paper's claim, why it matters, the key result, and its main caveat. No derivation, no prediction.",
+	standard:
+		"STANDARD: (1) from the setup alone, the learner PREDICTS the results (commit it with record_prediction, with a confidence) → (2) fill the gaps the paper relies on → (3) the learner DERIVES the key method / equation → (4) reveal the actual results against the prediction (resolve_prediction) → (5) CRITIQUE: confounds, alternative explanations, what the evidence does and doesn't show.",
+	deep:
+		"DEEP: the full standard arc, plus reproducing the main derivation step by step, the ablations and what they rule out, and what the learner would test next.",
+};
+
+/** A paper session (fork #8): message[0] of a session started from the
+ *  Papers shelf ("Read it"). The paper at the chosen depth fixes the goal;
+ *  the prober measures its prerequisites; the teacher follows the depth's
+ *  arc. A PDF paper is read through consult_book (cited pages); an article
+ *  (a lab blog post) rides along here as text. */
+export function newPaperContextMessage(input: {
+	paperId: string;
+	title: string;
+	authors: readonly string[];
+	arxivId?: string;
+	abstract: string;
+	depth: "skim" | "standard" | "deep";
+	format: "pdf" | "article";
+	articleText?: string;
+}): LhMarkerMessage {
+	const lines = [
+		"[Session context] — the learner chose to read this paper from their library:",
+		"",
+		`Paper: ${input.title}${input.authors.length > 0 ? ` — ${input.authors.slice(0, 6).join(", ")}${input.authors.length > 6 ? " et al." : ""}` : ""}${input.arxivId ? ` (arXiv ${input.arxivId})` : ""}`,
+		...(input.abstract ? ["", `Abstract: ${input.abstract}`] : []),
+		"",
+		`Depth: ${PAPER_ARCS[input.depth]}`,
+		"",
+		input.format === "pdf"
+			? `Read the paper itself with consult_book (book: "${input.paperId}") — cite pages. Never reveal its results before the learner has predicted them.`
+			: "The article's full text follows. Never reveal its results before the learner has predicted them.",
+		...(input.format === "article" && input.articleText ? ["", "--- Article text ---", input.articleText.slice(0, 40_000)] : []),
+	];
+	return {
+		id: newMessageId(),
+		role: "custom",
+		customType: "paper-context",
+		content: lines.join("\n"),
+		display: true,
+		details: { paperId: input.paperId, paperTitle: input.title, depth: input.depth },
 		timestamp: Date.now(),
 	};
 }
@@ -824,7 +873,7 @@ export function nativeInputCause(message: AgentMessage, history: readonly AgentM
 	if (message.role === "custom") {
 		if (["probe-handoff", "subagent-steer", "subagent-abort"].includes(message.customType)) return "automatic";
 		if (["practice-thinking", "practice-next"].includes(message.customType)) return "learner";
-		return ["graph-context", "goal-context", "book-context", "agenda-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
+		return ["graph-context", "goal-context", "book-context", "agenda-context", "paper-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
 	}
 	if (message.role === "toolResult") {
 		if (!(QUESTION_TOOLS as readonly string[]).includes(message.toolName) || message.isError || message.details == null || (message.details as { dismissed?: boolean }).dismissed) return "neutral";
