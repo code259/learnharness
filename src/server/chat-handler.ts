@@ -45,6 +45,7 @@ import { registerTurn, unregisterTurn } from "./turn-runs.ts";
 import { persistTurn, triggerExtraction } from "./turn-service.ts";
 import { addRoadmapSuggestion, startRoadmapFromChat } from "./goals.ts";
 import { findBook, bookOutline, libraryListText } from "./library.ts";
+import { paperForConsult, recordPrediction, resolvePrediction } from "./papers.ts";
 import { hasProbeDone, danglingQuestionOf } from "../core/native-messages.ts";
 import { composeInstructions } from "../agent/teacher-agent.ts";
 import { ensureCompacted, kickCompaction, effectiveThresholdTokens } from "./compaction.ts";
@@ -383,14 +384,16 @@ export async function handleChatInput(
 	const suggest = linkedGoal ? { addSuggestion: (text: string) => addRoadmapSuggestion(chatId, text) } : undefined;
 	// LIBRARY TOOLS (fork #15): present only when the library holds a ready
 	// book — an empty library adds nothing to the prompt's tool list.
-	const hasBooks = stores.libraryStore.listBooks().some((b) => b.status === "ready");
+	// A paper session (fork #8) always gets consult_book (its paper is read
+	// through it) and the prediction tools.
+	const hasBooks = stores.libraryStore.listBooks().some((b) => b.status === "ready") || !!record.paperId;
 	const library = hasBooks
 		? {
 				listBooks: () => libraryListText(linkedGoal?.goalId ?? null),
 				resolveBook: (ref: string) => {
 					const book = findBook(ref);
-					const outline = book ? bookOutline(book.id) : null;
-					return outline ?? `No ready book matches "${ref}" — call list_books for the ids.`;
+					const outline = (book ? bookOutline(book.id) : null) ?? paperForConsult(ref);
+					return outline ?? `No ready book or paper matches "${ref}" — call list_books for the ids.`;
 				},
 			}
 		: undefined;
@@ -452,6 +455,14 @@ export async function handleChatInput(
 						searchAvailable,
 						...(suggest ? { goals: { suggest } } : {}),
 						...(library ? { library } : {}),
+						...(record.paperId
+							? {
+									predictions: {
+										record: (statement: string, confidence: number) => recordPrediction(chatId, statement, confidence),
+										resolve: (predictionId: string, outcome: "held" | "partly" | "missed") => resolvePrediction(chatId, predictionId, outcome),
+									},
+								}
+							: {}),
 					},
 					agentOpts,
 				)

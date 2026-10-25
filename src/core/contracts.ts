@@ -20,3 +20,4 @@ export * from "./contracts/goals.ts";
 export * from "./contracts/today.ts";
 export * from "./contracts/library.ts";
 export * from "./contracts/fieldmap.ts";
+export * from "./contracts/papers.ts";

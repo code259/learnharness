@@ -34,6 +34,10 @@ export const PATHS = {
 	library: path.join(DATA_ROOT, "library"),
 	/** The AI safety field map (fork #10): one JSON record. */
 	fieldmap: path.join(DATA_ROOT, "fieldmap", "map.json"),
+	/** Papers (fork #8): data/library/papers/<id>/{paper.pdf, paper.json}. */
+	papers: path.join(DATA_ROOT, "library", "papers"),
+	/** The feed (fork #9): one JSON record. */
+	feed: path.join(DATA_ROOT, "library", "feed.json"),
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),

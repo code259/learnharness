@@ -21,6 +21,7 @@ import { probeDoneTool, type ProbeDoneContext } from "./tools/probe.ts";
 import { proberGraphTools } from "./tools/graph.ts";
 import { offerRoadmapTool, suggestRoadmapTool, type OfferRoadmapContext, type SuggestRoadmapContext } from "./tools/goals.ts";
 import { consultBookTool, listBooksTool, type LibraryToolContext } from "./tools/library.ts";
+import { predictionTools, type PredictionToolContext } from "./tools/papers.ts";
 import { readTool } from "./tools/read.ts";
 import { lsTool } from "./tools/ls.ts";
 import { findTool } from "./tools/find.ts";
@@ -416,6 +417,8 @@ export interface TeacherToolContext extends PlanToolContext {
 	goals?: { suggest?: SuggestRoadmapContext };
 	/** The library (fork #15): list_books + consult_book. */
 	library?: LibraryToolContext;
+	/** Paper sessions (fork #8): record_prediction + resolve_prediction. */
+	predictions?: PredictionToolContext;
 }
 
 /**
@@ -482,6 +485,7 @@ export function createTeacherTools(
 						...consultBookTool({ ...ctx.library, chatId: ctx.chatId, jobStore: ctx.jobStore, spawn: ctx.spawn, searchAvailable: ctx.searchAvailable }),
 					}
 				: {}),
+			...(ctx.predictions ? predictionTools(ctx.predictions) : {}),
 		},
 		withoutMechanics(enabled),
 		),

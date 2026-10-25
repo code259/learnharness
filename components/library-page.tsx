@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookOpenIcon, LinkIcon, UploadIcon } from "lucide-react";
 import type { BookSummary } from "@/src/core";
 import { TopBar } from "@/components/top-bar";
+import { FeedTab, PapersTab, libraryTabClass } from "@/components/papers-feed";
 import { BrailleSpinner } from "@/components/braille-spinner";
 import { useServerEvent, useServerResync } from "@/components/server-events";
 
@@ -22,7 +23,14 @@ export function coverageLine(b: Pick<BookSummary, "status" | "coveredSections" |
 	return `${b.coveredSections} of ${b.totalSections} sections known`;
 }
 
-export function LibraryPage({ initial }: { initial: BookSummary[] }) {
+export type LibraryTab = "books" | "papers" | "feed";
+
+export function LibraryPage({ initial, initialTab = "books" }: { initial: BookSummary[]; initialTab?: LibraryTab }) {
+	const [tab, setTab] = useState<LibraryTab>(initialTab);
+	const pickTab = (t: LibraryTab) => {
+		setTab(t);
+		window.history.replaceState(null, "", t === "books" ? "/library" : `/library?tab=${t}`);
+	};
 	const [books, setBooks] = useState<BookSummary[]>(initial);
 	const [url, setUrl] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -68,6 +76,19 @@ export function LibraryPage({ initial }: { initial: BookSummary[] }) {
 						Reference books for your learning. Sessions consult them when it helps and cite them; each book shows how much of it you
 						already know. They never set your roadmap — unless you choose <em>Study this book</em>.
 					</p>
+
+					<div className="flex items-center gap-0.5 self-start rounded-md border border-border/60 bg-background p-0.5" data-testid="library-tabs">
+						{(["books", "papers", "feed"] as const).map((t) => (
+							<button key={t} type="button" aria-pressed={tab === t} onClick={() => pickTab(t)} className={libraryTabClass(tab === t)}>
+								{t}
+							</button>
+						))}
+					</div>
+
+					{tab === "papers" && <PapersTab />}
+					{tab === "feed" && <FeedTab />}
+					{tab === "books" && (
+					<>
 
 					<div className="space-y-2 rounded-xl border border-border p-3" data-testid="library-add">
 						<div className="flex items-center gap-2">
@@ -152,6 +173,8 @@ export function LibraryPage({ initial }: { initial: BookSummary[] }) {
 								</Link>
 							))}
 						</div>
+					)}
+					</>
 					)}
 				</div>
 			</div>

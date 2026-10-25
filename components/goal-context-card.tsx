@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, CompassIcon, MapIcon } from "lucide-react";
-import type { AgendaContextDetails, BookContextDetails, GoalContextDetails } from "@/src/core";
+import { BookOpenIcon, CompassIcon, FileTextIcon, MapIcon } from "lucide-react";
+import type { AgendaContextDetails, BookContextDetails, GoalContextDetails, PaperContextDetails } from "@/src/core";
 
 /**
  * The goal-context card (goals, fork #4): message[0] of a session started
@@ -61,6 +61,23 @@ export function AgendaContextCard({ data }: { data: AgendaContextDetails }) {
 				<span className="min-w-0 flex-1 truncate">
 					{data.agendaTitle} · {data.areaTitle}
 				</span>
+			</Link>
+		</div>
+	);
+}
+
+/** The paper-context card (fork #8): message[0] of a paper session — the
+ *  paper, its depth, a link to its page on the Papers shelf. */
+export function PaperContextCard({ data }: { data: PaperContextDetails }) {
+	return (
+		<div data-testid="paper-context-card" className="my-1">
+			<Link
+				href={`/library/papers/${data.paperId}`}
+				className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border/70 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+			>
+				<FileTextIcon aria-hidden="true" className="size-3.5 shrink-0" />
+				<span className="font-medium">Paper · {data.depth}</span>
+				<span className="min-w-0 flex-1 truncate">{data.paperTitle}</span>
 			</Link>
 		</div>
 	);

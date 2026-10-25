@@ -13,6 +13,7 @@ import { goalStore } from "../store/goals.ts";
 import { inboxStore } from "../store/inbox.ts";
 import { libraryStore } from "../store/library.ts";
 import { fieldMapStore } from "../store/fieldmap.ts";
+import { feedStore, paperStore } from "../store/papers.ts";
 import { settingsStore } from "../store/settings.ts";
 import { resolveSettings, type EffectiveSettings } from "../core/settings-resolution.ts";
 /** The wired adapters. Satisfies core/graph.ts's GraphDeps structurally. */
@@ -25,6 +26,8 @@ export const stores = {
 	inboxStore,
 	libraryStore,
 	fieldMapStore,
+	paperStore,
+	feedStore,
 };
 
 export type Stores = typeof stores;

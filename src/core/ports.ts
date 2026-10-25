@@ -35,6 +35,8 @@ import type {
 	InboxStatus,
 	BookRecord,
 	FieldMapRecord,
+	PaperRecord,
+	FeedRecord,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -76,6 +78,8 @@ export interface ChatStore {
 	/** Link (or unlink, null) the session to a roadmap topic (goals, fork
 	 *  #4). Not conversation activity — updatedAt stays put. */
 	setGoalTopic(id: string, link: GoalTopicLink | null): void;
+	/** Mark the session as reading a paper (fork #8) — at birth only. */
+	setPaperId(id: string, paperId: string): void;
 }
 
 // ─── GoalStore — goals + roadmaps (data/goals, fork #4) ─────────────────────
@@ -292,4 +296,23 @@ export interface FieldMapStore {
 	/** The record, or null before the first build (or newer-schema refusal). */
 	read(): FieldMapRecord | null;
 	write(record: FieldMapRecord): void;
+}
+
+// ─── PaperStore + FeedStore — papers and the feed (forks #8, #9) ─────────────
+// The papers service is the sole writer of both; writes announce
+// papers-changed.
+
+export interface PaperStore {
+	createPaper(input: Omit<PaperRecord, "id" | "addedAt" | "updatedAt" | "predictions" | "version">): PaperRecord;
+	getPaper(id: string): PaperRecord | null;
+	/** Newest first. */
+	listPapers(): PaperRecord[];
+	savePaper(record: PaperRecord): PaperRecord;
+	pdfPath(id: string): string;
+	deletePaper(id: string): boolean;
+}
+
+export interface FeedStore {
+	read(): FeedRecord;
+	write(record: FeedRecord): void;
 }

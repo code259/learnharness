@@ -384,6 +384,15 @@ function projectMarker(marker: LhMarkerMessage, out: LhViewMessage[]): void {
 			});
 			return;
 		}
+		case "paper-context": {
+			// A paper session's context (fork #8).
+			out.push({
+				id: marker.id,
+				role: "user",
+				parts: [{ type: "data-paper-context", id: `ppc_${marker.id}`, data: marker.details }],
+			});
+			return;
+		}
 		case "probe-handoff": {
 			out.push({
 				id: marker.id,
