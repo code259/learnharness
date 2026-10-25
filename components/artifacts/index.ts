@@ -6,6 +6,7 @@ import { VisualCard } from "@/components/artifacts/visual-card";
 import { ProbeDoneCard } from "@/components/artifacts/probe-done-card";
 import { ToolCallCard } from "@/components/artifacts/tool-call-card";
 import { RoadmapOfferCard } from "@/components/artifacts/roadmap-offer-card";
+import { ExerciseCard } from "@/components/artifacts/exercise-card";
 import { ProblemCard, ConcludeCard } from "@/components/practice-cards";
 
 /**
@@ -62,4 +63,8 @@ export const artifactRenderers: Record<string, ComponentType<ArtifactPartProps>>
 	// Paper sessions (fork #8): quiet traces of the calibration record.
 	record_prediction: ToolCallCard,
 	resolve_prediction: ToolCallCard,
+	// External exercises (fork #11): the suggestion is a markable card; the
+	// catalog search is a quiet trace.
+	suggest_exercise: ExerciseCard,
+	find_exercises: ToolCallCard,
 };

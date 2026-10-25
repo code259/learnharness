@@ -11,7 +11,7 @@
  */
 
 import type { FieldArea, FieldMapRecord, FieldMapView, FieldProposal, IdeaStatus } from "../core/contracts.ts";
-import { allAgendas, applyProposal, areaViews, parseCsv, seedAreas, uniqueId, type SeedArea } from "../core/fieldmap.ts";
+import { allAgendas, applyProposal, areaViews, fieldTotals, parseCsv, seedAreas, uniqueId, type SeedArea } from "../core/fieldmap.ts";
 import { ideaCandidates } from "../core/library.ts";
 import { newAgendaContextMessage } from "../core/native-messages.ts";
 import { getGraph } from "../core/graph.ts";
@@ -276,7 +276,10 @@ async function checkCoverage(all = false, background = true): Promise<void> {
 			}
 		}
 	}
-	save({ coverage: { graphRevision: revision, checkedAt: new Date().toISOString(), concepts: next } });
+	const at = new Date().toISOString();
+	const totals = fieldTotals(areaViews(record.areas, { graphRevision: revision, checkedAt: at, concepts: next }));
+	const history = [...(current().history ?? []), { at, known: totals.known, partly: totals.partly, total: totals.total }].slice(-400);
+	save({ coverage: { graphRevision: revision, checkedAt: at, concepts: next }, history });
 }
 
 function coverageStale(record: FieldMapRecord): boolean {

@@ -62,6 +62,8 @@ export interface ServerEvents {
 	"fieldmap-changed": Record<string, never>;
 	/** Papers or the feed changed (forks #8/#9). */
 	"papers-changed": Record<string, never>;
+	/** An exercise card was marked (fork #11). */
+	"exercises-changed": Record<string, never>;
 }
 
 export type ServerEventType = keyof ServerEvents;
@@ -82,6 +84,7 @@ export const SERVER_EVENT_TYPES = [
 	"library-changed",
 	"fieldmap-changed",
 	"papers-changed",
+	"exercises-changed",
 ] as const satisfies readonly ServerEventType[];
 
 /** One notification: the type discriminates the payload. */

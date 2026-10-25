@@ -43,6 +43,9 @@ export * from "./library.ts";
 export * from "./fieldmap.ts";
 // feed.ts (fork #9): the feed's free ranking stage — browser-safe.
 export * from "./feed.ts";
+// exercise-catalog.ts + progress.ts (forks #11, #12) — browser-safe.
+export * from "./exercise-catalog.ts";
+export * from "./progress.ts";
 export * from "./phases.ts";
 export * from "./pending.ts";
 export * from "./prompt-segments.ts";

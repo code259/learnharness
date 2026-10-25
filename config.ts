@@ -38,6 +38,8 @@ export const PATHS = {
 	papers: path.join(DATA_ROOT, "library", "papers"),
 	/** The feed (fork #9): one JSON record. */
 	feed: path.join(DATA_ROOT, "library", "feed.json"),
+	/** Exercise marks (fork #11): one JSON list. */
+	exercises: path.join(DATA_ROOT, "exercises.json"),
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),

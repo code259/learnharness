@@ -34,6 +34,7 @@ Hold the architecture along two orthogonal axes:
 | **Reading room** — papers + the feed | `data/library/papers/`, `data/library/feed.json` | the papers service (`src/server/papers.ts`); paper sessions, prediction calibration, the daily ranked feed ([papers-feed.md](papers-feed.md)) |
 | **Compass** — the AI safety field map | `data/fieldmap/map.json` | the field-map service (`src/server/fieldmap.ts`) + cartographer agent; a mirror of the field with your coverage ([field-map.md](field-map.md)) |
 | **Atlas** — goals + roadmaps | `data/goals/*.json` | the goals service (`src/server/goals.ts`) + roadmap agent; topic progress derived from linked sessions ([goals-roadmaps.md](goals-roadmaps.md)) |
+| **Mirror** — exercises + progress | `data/exercises.json` | the progress service (`src/server/progress.ts`); exercise cards marked in teaching chats, and the derived progress page ([exercises-progress.md](exercises-progress.md)) |
 | **Stage** — presentation shell | nothing server-side | components/, graph canvas, docks — pure consumer via `/api/*` |
 | **Machine room** — host | process + config | Electron main, standalone Next server, `config.ts`, data-dir seam, BYOK keys |
 
