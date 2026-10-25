@@ -37,6 +37,7 @@ import type {
 	FieldMapRecord,
 	PaperRecord,
 	FeedRecord,
+	ExerciseMark,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -315,4 +316,14 @@ export interface PaperStore {
 export interface FeedStore {
 	read(): FeedRecord;
 	write(record: FeedRecord): void;
+}
+
+// ─── ExerciseStore — exercise card marks (data/exercises.json, fork #11) ────
+
+export interface ExerciseStore {
+	/** Newest first. */
+	list(): ExerciseMark[];
+	get(callId: string): ExerciseMark | null;
+	/** Set (or replace) the card's mark. */
+	mark(mark: ExerciseMark): ExerciseMark;
 }

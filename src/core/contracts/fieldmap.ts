@@ -82,6 +82,9 @@ export interface FieldMapRecord {
 	proposals: FieldProposal[];
 	/** The change log (refinements, accepted proposals). */
 	changes: FieldChange[];
+	/** "Where you stand" totals at each coverage check (the progress page's
+	 *  field line — fork #12). */
+	history?: { at: string; known: number; partly: number; total: number }[];
 }
 
 export const CURRENT_FIELDMAP_VERSION = 1;

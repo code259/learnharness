@@ -22,6 +22,7 @@ import { proberGraphTools } from "./tools/graph.ts";
 import { offerRoadmapTool, suggestRoadmapTool, type OfferRoadmapContext, type SuggestRoadmapContext } from "./tools/goals.ts";
 import { consultBookTool, listBooksTool, type LibraryToolContext } from "./tools/library.ts";
 import { predictionTools, type PredictionToolContext } from "./tools/papers.ts";
+import { exerciseTools } from "./tools/exercises.ts";
 import { readTool } from "./tools/read.ts";
 import { lsTool } from "./tools/ls.ts";
 import { findTool } from "./tools/find.ts";
@@ -486,6 +487,8 @@ export function createTeacherTools(
 					}
 				: {}),
 			...(ctx.predictions ? predictionTools(ctx.predictions) : {}),
+			// External exercises (fork #11): always available to the teacher.
+			...exerciseTools(),
 		},
 		withoutMechanics(enabled),
 		),
