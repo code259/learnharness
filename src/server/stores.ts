@@ -8,6 +8,7 @@
 
 import { chatStore } from "../store/chats.ts";
 import { graphStore } from "../store/graph.ts";
+import { sourceOrganizationStore } from "../store/source-organization.ts";
 import { jobStore } from "../store/jobs.ts";
 import { goalStore } from "../store/goals.ts";
 import { inboxStore } from "../store/inbox.ts";
@@ -17,10 +18,12 @@ import { feedStore, paperStore } from "../store/papers.ts";
 import { exerciseStore } from "../store/exercises.ts";
 import { settingsStore } from "../store/settings.ts";
 import { resolveSettings, type EffectiveSettings } from "../core/settings-resolution.ts";
+import { syncCustomProvider } from "./custom-provider.ts";
 /** The wired adapters. Satisfies core/graph.ts's GraphDeps structurally. */
 export const stores = {
 	chatStore,
 	graphStore,
+	sourceOrganizationStore,
 	jobStore,
 	settingsStore,
 	goalStore,
@@ -45,3 +48,7 @@ export type Stores = typeof stores;
 export function effectiveSettings(): EffectiveSettings {
 	return resolveSettings(settingsStore.readSettings());
 }
+
+// Boot: register the custom endpoint (when configured) into piModels(); the
+// POST /api/custom-provider route re-syncs after every connect.
+syncCustomProvider();
